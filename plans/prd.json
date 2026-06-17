@@ -21,7 +21,8 @@
         "Verification passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "Baselines rank the FULL population (unlike composite, which is flagged-only) — that contrast is the point. Reuse ranking_metrics + labeled_fraud_loans. Keep it pure SQL + Python."
     },
     {

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
-from relief_probe.benchmark.core import ranking_metrics, run_benchmark
+from relief_probe.benchmark.core import (
+    baseline_rankings,
+    ranking_metrics,
+    run_benchmark,
+)
 
-__all__ = ["ranking_metrics", "run_benchmark"]
+__all__ = ["baseline_rankings", "ranking_metrics", "run_benchmark"]

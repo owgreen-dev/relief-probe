@@ -34,6 +34,36 @@ def labeled_fraud_loans(con: duckdb.DuckDBPyConnection) -> set[str]:
     }
 
 
+def baseline_rankings(con: duckdb.DuckDBPyConnection) -> dict[str, list[str]]:
+    """Whole-population baseline rankings to contrast against the composite detector.
+
+    Unlike the composite (which ranks only flagged loans), these naive sorts rank the
+    ENTIRE population — that contrast is the point: a reader sees whether the detector
+    machinery beats a one-line SQL sort.
+
+    - ``amount_per_job``: dollars-per-job descending (jobs >= 1, amount > 0), the
+      crudest "too much money for too few jobs" heuristic.
+    - ``raw_amount``: current approval amount descending (biggest loans first).
+    """
+    amount_per_job = [
+        str(r[0])
+        for r in con.execute(
+            "SELECT loan_number FROM loans "
+            "WHERE jobs_reported >= 1 AND current_approval_amount > 0 "
+            "ORDER BY current_approval_amount / jobs_reported DESC, loan_number"
+        ).fetchall()
+    ]
+    raw_amount = [
+        str(r[0])
+        for r in con.execute(
+            "SELECT loan_number FROM loans "
+            "WHERE current_approval_amount IS NOT NULL "
+            "ORDER BY current_approval_amount DESC, loan_number"
+        ).fetchall()
+    ]
+    return {"amount_per_job": amount_per_job, "raw_amount": raw_amount}
+
+
 def ranking_metrics(
     ranked: list[str],
     positives: set[str],
@@ -91,6 +121,13 @@ def run_benchmark(
             "metrics": ranking_metrics(det_ranked, positives, base_rate, ks),
         }
 
+    # Naive whole-population baselines, scored against the SAME positives/base_rate/ks.
+    baselines: dict[str, dict] = {}
+    for name, ranked_baseline in baseline_rankings(con).items():
+        baselines[name] = {
+            "metrics": ranking_metrics(ranked_baseline, positives, base_rate, ks)
+        }
+
     return {
         "ks": list(ks),
         "population": population,
@@ -99,4 +136,5 @@ def run_benchmark(
         "n_ranked": len(ranked),
         "overall": overall,
         "ablation": ablation,
+        "baselines": baselines,
     }

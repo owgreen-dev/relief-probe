@@ -154,6 +154,24 @@ def benchmark() -> None:
         a.add_row(*row)
     console.print(a)
 
+    # Composite vs naive whole-population baselines: does the machinery beat a sort?
+    b = Table(title="Composite vs naive baselines (lift@k)")
+    b.add_column("ranking")
+    for k in ks:
+        b.add_column(f"lift@{k}", justify="right")
+
+    def _lift_row(label: str, metrics: dict) -> list[str]:
+        row = [label]
+        for k in ks:
+            lift = metrics[k]["lift"]
+            row.append("—" if lift is None else f"{lift:.1f}x")
+        return row
+
+    b.add_row(*_lift_row("composite", res["overall"]))
+    for name, info in res["baselines"].items():
+        b.add_row(*_lift_row(name, info["metrics"]))
+    console.print(b)
+
     console.print(
         "[dim]Recall-on-known-fraud, not a fraud rate: labels are a small, "
         "prosecution-biased PU sample resolved to the $150k+ slice. "

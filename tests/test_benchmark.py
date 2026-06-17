@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from relief_probe.benchmark.core import (
+    baseline_rankings,
     labeled_fraud_loans,
     ranking_metrics,
     run_benchmark,
@@ -62,3 +63,38 @@ def test_run_benchmark_ranks_labeled_loan_at_top(tmp_path):
     assert res["overall"][1]["lift"] > 1.0
     # Ablation reports both detectors.
     assert set(res["ablation"]) == {"naics_cohort_outlier", "payroll_cap_exceedance"}
+
+
+def test_baseline_rankings_ordering(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed(con)
+    bl = baseline_rankings(con)
+    assert set(bl) == {"amount_per_job", "raw_amount"}
+    # Whole population is ranked (no flagged-only restriction).
+    assert len(bl["amount_per_job"]) == 41
+    assert len(bl["raw_amount"]) == 41
+    # FRAUD-1 has the highest $/job (200k vs <12k) and the largest loan ($1M).
+    assert bl["amount_per_job"][0] == "FRAUD-1"
+    assert bl["raw_amount"][0] == "FRAUD-1"
+    # raw_amount is sorted by amount descending.
+    amounts = [
+        con.execute(
+            "SELECT current_approval_amount FROM loans WHERE loan_number = ?", [ln]
+        ).fetchone()[0]
+        for ln in bl["raw_amount"]
+    ]
+    assert amounts == sorted(amounts, reverse=True)
+
+
+def test_run_benchmark_includes_baselines(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed(con)
+    res = run_benchmark(con, ks=(1, 5))
+    assert set(res["baselines"]) == {"amount_per_job", "raw_amount"}
+    for name in ("amount_per_job", "raw_amount"):
+        metrics = res["baselines"][name]["metrics"]
+        # Documented shape: per-k dict of hits/precision/lift/recall.
+        assert set(metrics) == {1, 5}
+        assert set(metrics[1]) == {"hits", "precision", "lift", "recall"}
+    # The planted high-$/job labeled loan tops the amount_per_job baseline.
+    assert res["baselines"]["amount_per_job"]["metrics"][1]["hits"] == 1

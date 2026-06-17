@@ -183,3 +183,32 @@ Verify: `uv run pytest && uv run ruff check .`
 - Verification: 45 passed, ruff clean. **All T-001..T-004 complete.**
 
 ---
+
+### Task: H-001 - Baseline comparison in the benchmark
+
+**What was implemented:**
+- `benchmark/core.py`: `baseline_rankings(con) -> dict[str, list[str]]` returning
+  WHOLE-population ranked loan_number lists for `amount_per_job`
+  (ORDER BY current_approval_amount/jobs_reported DESC, jobs>=1 & amount>0) and
+  `raw_amount` (ORDER BY current_approval_amount DESC). Tie-break by loan_number
+  for deterministic ordering.
+- `run_benchmark` result gains a `baselines` key:
+  `{name: {"metrics": ranking_metrics(...)}}` scored against the SAME
+  positives/base_rate/ks as the composite overall.
+- Exported `baseline_rankings` from `benchmark/__init__.py`.
+- CLI `benchmark`: new "Composite vs naive baselines (lift@k)" table contrasting
+  composite vs amount_per_job vs raw_amount.
+- `tests/test_benchmark.py`: +2 tests (ordering + full-population count;
+  run_benchmark baselines shape + planted loan tops amount_per_job).
+
+**Files changed:**
+- src/relief_probe/benchmark/core.py, src/relief_probe/benchmark/__init__.py
+- src/relief_probe/cli.py (baseline table)
+- tests/test_benchmark.py
+
+**Learnings:**
+- Baselines rank the FULL population (composite ranks flagged-only) — the contrast
+  is the deliverable. No benchmark NUMBERS written to docs (regenerated post-ingest).
+- Verification: 47 passed, ruff clean.
+
+---
