@@ -27,17 +27,34 @@ agent/       Layer 6 — Investigation: agentic, tool-grounded loan-investigator
 
 Output contract: every detector emits `(loan_number, detector_id, score, evidence_json)` into one `signals` table.
 
-## Headline result
+## Headline result (and an honest baseline check)
 
-Score the **965,122** loans in the public $150k+ slice with two transparent detectors, rank by a simple composite, and validate against **325** DOJ-prosecuted loans entity-resolved from 3,414 enforcement press releases (base rate 0.034%):
+Score the **965,122** loans in the public $150k+ slice, rank by composite, and validate
+against **325** DOJ-prosecuted loans entity-resolved from 3,414 enforcement press
+releases (base rate 0.034%). Crucially, we compare the detector machinery against
+**dumb baselines** — because the right question isn't "what lift do I get?" but "do my
+robust-z + FDR + cohort detectors beat a one-line sort?" Lift over base rate (raw hit
+counts in parens):
 
-| top-k | precision@k | **lift** | recall |
+| ranking | lift@100 | lift@500 | lift@1000 |
 | --- | --- | --- | --- |
-| 100 | 1.00% | **29.7×** | 0.3% |
-| 500 | 0.80% | **23.8×** | 1.2% |
-| 1000 | 0.50% | **14.8×** | 1.5% |
+| **Composite** (detectors + cohort-z + BH-FDR) | 29.7× (1) | **23.8× (4)** | 14.8× (5) |
+| Trivial: `ORDER BY amount/jobs DESC` (one line) | 29.7× (1) | 11.9× (2) | 14.8× (5) |
+| Dumb: `ORDER BY loan_amount DESC` | 0× (0) | 0× (0) | 5.9× (2) |
 
-Read honestly: ~24–30× enrichment at the top is real signal (comparable to a Medicare-FWA equivalent), but absolute recall is tiny and labels are a **prosecution-biased PU sample** — so these are **recall-on-known-fraud, a lower bound**, not a fraud rate. Reproduce: `relief-probe ingest && relief-probe fetch-labels && relief-probe resolve-labels && relief-probe benchmark`.
+What this honestly shows:
+- **The core signal is real.** Dollars-per-reported-job decisively beats raw loan
+  amount (which finds *nothing* in the top 500). Normalizing by jobs is doing the work.
+- **The fancy stats add only a little.** The cohort-z/FDR composite beats a one-line
+  `amount/jobs` sort mainly at k=500 (4 hits vs 2); elsewhere they tie. The methodology
+  is sound hygiene, but most of the signal is the ratio, not the machinery.
+- **Estimates are noisy.** These rest on **single-digit hit counts**, so treat the lift
+  as a rough lower bound, not a precise figure. Labels are a small, **prosecution-biased
+  PU sample** → this is **recall-on-known-fraud, not a fraud rate**.
+
+Reproduce: `relief-probe ingest && relief-probe fetch-labels && relief-probe resolve-labels && relief-probe benchmark` (the table is `benchmark`'s baseline comparison).
+
+> Numbers above are on the **$150k+ slice**. A full-population refresh (all ~11.5M loans → more labels → larger, less noisy hit counts) is in progress; this section will be updated with those figures.
 
 ## Status
 
