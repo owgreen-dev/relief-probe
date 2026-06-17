@@ -21,7 +21,7 @@ ingest/      Layer 1 — Warehouse:    resolve + download public SBA CSVs → Du
 detectors/   Layer 2 — Detection:    self-contained scheme modules → unified signals table             ✅
 labels/      Layer 3 — Labels:       scrape DOJ enforcement → entity-resolve to loan_number             ✅
 benchmark/   Layer 4 — Validation:   rank loans, measure how charged-fraud concentrates at the top      ✅
-vision/      Layer 5 — Documents:    supporting-document authenticity (ELA forgery detection) tab        ✅
+vision/      Layer 5 — Documents:    ELA forgery-detection plumbing, demoed on SYNTHETIC splices       ✅
 agent/       Layer 6 — Investigation: agentic, tool-grounded loan-investigator + MCP server             ✅
 ```
 
@@ -41,11 +41,11 @@ Read honestly: ~24–30× enrichment at the top is real signal (comparable to a 
 
 ## Status
 
-All six layers built, tested, and verified on real data. See [NEXT_STEPS.md](NEXT_STEPS.md).
+All six layers built and tested; layers 1–4 and 6 verified on real data, the vision layer (5) demonstrated on synthetic splices only (plumbing, not a validated capability). See [NEXT_STEPS.md](NEXT_STEPS.md).
 
 - **Detectors:** `naics_cohort_outlier` (robust cohort z-score, BH-FDR) · `payroll_cap_exceedance` (per-employee program ceiling).
 - **Labels:** DOJ press-release scraper + precision-tuned entity resolution (amount-corroborated) → 325 high-precision labels.
-- **Vision:** ELA document-forgery detector + Streamlit dashboard (Loan-leads + Document-authenticity tabs).
+- **Vision:** Error Level Analysis (ELA) document-forgery *plumbing* + Streamlit dashboard (Loan-leads + Document-authenticity tabs). Honest scope: the detector is demonstrated only on **synthetic spliced images** (trivially separable, so it proves the wiring — not real-world forgery detection). Real anchors (IDNet, "Find it again!") are wired but not run; no real-document accuracy is claimed.
 - **Agent/MCP:** tool-grounded, deterministic-first loan investigator (`relief-probe investigate`) and an MCP server (`relief-probe serve-mcp`) over the same four read-only warehouse tools.
 
 ## Quickstart

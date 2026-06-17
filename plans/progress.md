@@ -212,3 +212,37 @@ Verify: `uv run pytest && uv run ruff check .`
 - Verification: 47 passed, ruff clean.
 
 ---
+
+### Task: H-002 - Honest framing for the vision layer
+
+**What was implemented:**
+- `vision/__init__.py`: added `SYNTHETIC_NOTE` constant (and exported it) — states
+  plainly the ELA detector is a SYNTHETIC plumbing/methodology demo (trivially
+  separable splices), NOT validated on real forgeries; high synthetic accuracy
+  doesn't imply real-world performance; real anchors (IDNet, Find-it-again) wired
+  but not run.
+- CLI `vision-demo` prints `SYNTHETIC_NOTE` (yellow) before training; `vision-score`
+  appends a note that the score is synthetic-trained unless trained on real data.
+- `app/dashboard.py` Document-authenticity tab shows `SYNTHETIC_NOTE` as an
+  `st.warning` right below the P(forged) score.
+- README: Layer-5 line, Vision bullet, and Status line reworded honestly
+  (synthetic plumbing, not a validated capability); no fabricated metrics.
+- `tests/test_vision.py`: +2 tests — SYNTHETIC_NOTE non-empty & mentions
+  'synthetic'; `vision-demo` CLI output contains the note (CliRunner, with
+  whitespace normalized because rich word-wraps).
+
+**Files changed:**
+- src/relief_probe/vision/__init__.py, src/relief_probe/cli.py
+- app/dashboard.py, README.md
+- tests/test_vision.py, plans/prd.json, plans/progress.md
+
+**Learnings:**
+- `relief_probe.vision.__init__` imports `ela` (needs PIL), so importing
+  `SYNTHETIC_NOTE` in the CLI must stay inside the vision-extra try/except.
+- rich Console word-wraps captured CLI output (~80 cols); to assert a long string
+  is present, collapse whitespace on both sides before substring-matching.
+- CLI `vision-demo` reads `data_dir()` via a function-local import, so a test can
+  redirect it with `monkeypatch.setattr(config, "data_dir", lambda: tmp_path)`.
+- Verification: 49 passed, ruff clean. **All H-001..H-002 complete.**
+
+---

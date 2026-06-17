@@ -37,7 +37,8 @@
         "Verification passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "Small, mostly framing. The point of the review: ELA on engineered q25 splices is trivially separable, so the demo proves wiring, not document-fraud detection. Say so plainly."
     }
   ]

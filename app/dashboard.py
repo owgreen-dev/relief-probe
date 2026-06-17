@@ -80,6 +80,7 @@ def vision_tab() -> None:
     try:
         from PIL import Image
 
+        from relief_probe.vision import SYNTHETIC_NOTE
         from relief_probe.vision.ela import ela_image
         from relief_probe.vision.model import forgery_probability, load_model
     except ImportError:
@@ -113,6 +114,7 @@ def vision_tab() -> None:
     st.metric("P(forged)", f"{p:.1%}", delta_color="off")
     st.progress(min(max(p, 0.0), 1.0))
     st.caption("Bright, spatially-uneven ELA regions suggest a spliced/edited area.")
+    st.warning(SYNTHETIC_NOTE)
 
 
 def main() -> None:

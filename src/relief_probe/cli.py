@@ -46,6 +46,7 @@ def vision_demo(
     `authentic/` + `forged/` images (see relief_probe.vision.datasets).
     """
     try:
+        from relief_probe.vision import SYNTHETIC_NOTE
         from relief_probe.vision.datasets import make_synthetic
         from relief_probe.vision.model import train
     except ImportError:
@@ -54,6 +55,7 @@ def vision_demo(
 
     from relief_probe.config import data_dir
 
+    console.print(f"[yellow]{SYNTHETIC_NOTE}[/]")
     synth = data_dir() / "vision_synth"
     model_path = data_dir() / "models" / "doc_authenticity.joblib"
     console.print(f"Generating {n_per_class}×2 synthetic documents …")
@@ -96,6 +98,11 @@ def vision_score(
     with Image.open(image) as img:
         p = forgery_probability(model, img)
     console.print(f"P(forged) = [bold]{p:.1%}[/] for {image}")
+    console.print(
+        "[dim]Note: unless this model was trained on real labeled forgeries, it is "
+        "synthetic-trained — this score reflects the synthetic demo task, not "
+        "validated real-document forgery detection.[/]"
+    )
 
 
 @app.command()

@@ -59,3 +59,26 @@ def test_train_needs_enough_images(tmp_path):
     (tmp_path / "forged").mkdir()
     with pytest.raises(ValueError):
         train(tmp_path)
+
+
+def test_synthetic_note_is_honest():
+    from relief_probe.vision import SYNTHETIC_NOTE
+
+    assert SYNTHETIC_NOTE
+    assert "synthetic" in SYNTHETIC_NOTE.lower()
+
+
+def test_vision_demo_cli_prints_synthetic_note(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from relief_probe import config
+    from relief_probe.cli import app
+    from relief_probe.vision import SYNTHETIC_NOTE
+
+    # Keep the demo self-contained and off the real data dir.
+    monkeypatch.setattr(config, "data_dir", lambda: tmp_path)
+    result = CliRunner().invoke(app, ["vision-demo", "--n-per-class", "12"])
+    assert result.exit_code == 0, result.output
+    # Rich word-wraps the console output, so collapse whitespace before matching.
+    normalized = " ".join(result.output.split())
+    assert " ".join(SYNTHETIC_NOTE.split()) in normalized
