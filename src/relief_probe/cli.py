@@ -78,6 +78,35 @@ def fetch_labels(
     )
 
 
+@app.command(name="resolve-labels")
+def resolve_labels(
+    threshold: float = typer.Option(
+        0.6, help="Minimum match confidence [0-1] to accept a loan as a fraud label."
+    ),
+) -> None:
+    """Entity-resolve staged DOJ releases to loans, building `fraud_cases` labels."""
+    from relief_probe.labels.resolve import resolve_all
+
+    with connect() as con:
+        n_press = con.execute("SELECT COUNT(*) FROM press_releases").fetchone()[0]
+        if n_press == 0:
+            console.print(
+                "[yellow]No staged releases.[/] Run `relief-probe fetch-labels` first."
+            )
+            raise typer.Exit(code=1)
+        console.print(f"Resolving [bold]{n_press:,}[/] staged releases to loans …")
+        summary = resolve_all(
+            con,
+            threshold=threshold,
+            progress=lambda i, n: console.print(f"  scanned {i:,} → {n:,} matches"),
+        )
+    console.print(
+        f"[green]Labeled {summary['loans_labeled']:,} loans[/] from "
+        f"{summary['releases_matched']:,}/{summary['releases_scanned']:,} "
+        f"loan-fraud releases that resolved to a loan."
+    )
+
+
 @app.command()
 def score(
     top: int = typer.Option(25, help="How many ranked loans to print."),

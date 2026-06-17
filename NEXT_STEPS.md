@@ -40,12 +40,22 @@ and stages them in `press_releases`. Robust to the API's stray old-dated records
 (whole-page date stop), retries transient errors, stores incrementally per page
 (idempotent on a url hash). Offline-tested (parse/amount/program/idempotency).
 
-**Next (M3.1) — entity resolution:** link `press_releases` → `loans.loan_number`.
-Plan: for each loan-fraud release, search its `body` for loan `borrower_name`s
-appearing verbatim (normalized), disambiguated by state + amount proximity. Write
-`fraud_cases` rows with `match_method` / `match_confidence`; keep unmatched cases
-too. Frame matched loans as PU positives.
-Optional: add SBA-OIG records as a second `source`.
+**Entity resolution ✅ drafted** (`labels/resolve.py`, `relief-probe resolve-labels`):
+normalizes loan borrower names into an index, scans each release's text for every
+contiguous n-gram (no fragile boundary detection), and accepts a loan as a label only
+when the name match is corroborated by the loan's **state** and/or **amount** appearing
+in the release (confidence-scored, threshold 0.6; generic names need corroboration).
+Writes `fraud_cases` with `match_method` / `match_confidence`. Offline-tested.
+Limitations (documented): misses person-name sole-props, DBA/misspellings (no fuzzy
+edit distance yet); precision-first by design (false labels poison the benchmark).
+
+**Run it for real** once the backfill completes: `relief-probe resolve-labels`.
+Then sanity-check matched loans by hand before trusting them.
+Optional later: SBA-OIG records as a second `source`; person-name + fuzzy matching.
+
+Context: there is NO public per-loan label list (the 2026 "562K referred loans" are
+flagged-not-charged and not downloadable), so this self-built, prosecution-biased PU
+label set is the only path — hence recall-on-known-fraud framing in M4.
 
 ## M4 — PU forward benchmark (`benchmark/`)
 

@@ -8,5 +8,6 @@ records. Labels are positive-unlabeled (PU): see RESPONSIBLE_USE.md.
 from __future__ import annotations
 
 from relief_probe.labels.doj import fetch_doj_cases, iter_doj_pages, store_releases
+from relief_probe.labels.resolve import resolve_all
 
-__all__ = ["fetch_doj_cases", "iter_doj_pages", "store_releases"]
+__all__ = ["fetch_doj_cases", "iter_doj_pages", "resolve_all", "store_releases"]
