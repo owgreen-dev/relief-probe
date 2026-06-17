@@ -19,6 +19,14 @@ console = Console()
 _TABLES = ("loans", "fraud_cases", "signals")
 
 
+@app.callback()
+def _main() -> None:
+    """Load .env (if present) so ANTHROPIC_API_KEY etc. are available to commands."""
+    from relief_probe.config import load_env
+
+    load_env()
+
+
 @app.command()
 def info() -> None:
     """Show the warehouse location and per-table row counts."""

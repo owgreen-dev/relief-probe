@@ -10,6 +10,10 @@ scripts/ralph/loop.out
 .claude/ralph-state.local.md
 .claude/*.local.*
 
+# Secrets — never commit API keys.
+.env
+.env.*
+
 # Python
 __pycache__/
 *.py[cod]
