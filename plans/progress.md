@@ -70,3 +70,35 @@ Verify: `uv run pytest && uv run ruff check .`
 - Verification: 33 passed, ruff clean.
 
 ---
+
+### Task: T-002 - agent/report.py InvestigatorReport + deterministic build_report
+
+**What was implemented:**
+- `agent/report.py` with frozen dataclasses `EvidenceItem(claim, source, detail)`
+  and `InvestigatorReport(loan_number, risk_level, summary, evidence,
+  alternative_explanations, recommended_next_steps, disclaimer)`.
+- `DISCLAIMER` constant (lead-not-evidence wording mirroring RESPONSIBLE_USE.md).
+- `build_report(evidence)` is pure/deterministic and consumes the dict from
+  `tools.gather_evidence` verbatim. It fabricates nothing — every row cites its
+  source tool (`composite_for`, `loan_signals`, `peer_comparison`,
+  `fraud_case_check`).
+- `tests/test_agent_report.py`: flagged+labeled -> critical with cited evidence;
+  flagged+unlabeled -> high; unflagged -> low + empty evidence; disclaimer always
+  present; frozen-instance check (7 tests).
+
+**Files changed:**
+- src/relief_probe/agent/report.py (new)
+- tests/test_agent_report.py (new)
+
+**Learnings:**
+- Risk ladder is coarse triage (detector scores aren't calibrated): `critical`
+  if labeled (fraud_cases match) regardless of score; else `low` when not
+  flagged; else `high` when composite_score >= 6.0 OR n_signals >= 3; else
+  `elevated`. Thresholds `_HIGH_COMPOSITE=6.0`, `_HIGH_N_SIGNALS=3` are documented
+  in the module.
+- `build_report` reads defensively (`evidence.get(...) or {}`) so a partial
+  evidence dict never raises. One evidence row per fired detector, ordered by the
+  upstream tool's score-DESC sort.
+- Verification: 38 passed, ruff clean.
+
+---
