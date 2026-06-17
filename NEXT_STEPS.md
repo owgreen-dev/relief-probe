@@ -117,6 +117,14 @@ The build is complete and above-median on breadth + engineering + honesty, but t
   label the tab explicitly as a synthetic plumbing demo. Don't let "100%" stand naked.
 - **H6 — One genuinely independent detector** (duplicate-address rings / lender
   concentration) so "corroboration" isn't two views of the same $/job ratio.
+- **H7 — Temporal holdout for any label-aware step.** Detectors are currently
+  unsupervised, so no split is needed *yet* (and splitting 325 labels → single-digit
+  top-k hits would be uselessly noisy). But **before** tuning thresholds to lift or
+  training the M4.1 PU scorer, add `benchmark --holdout-year Y`: develop on prosecutions
+  charged ≤ Y, validate on those charged > Y (charge dates span 2020–2026). A temporal
+  holdout is more defensible for fraud than a random split and mirrors deployment;
+  mandatory the moment anything is fit to labels. Also: freeze the resolver (tuned for
+  match precision, not lift) before any detector tuning.
 
 Also still open: M4.1 learned PU scorer (`ml` extra); real vision data + CNN vs ELA.
 

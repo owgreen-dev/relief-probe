@@ -51,6 +51,12 @@ What this honestly shows:
 - **Estimates are noisy.** These rest on **single-digit hit counts**, so treat the lift
   as a rough lower bound, not a precise figure. Labels are a small, **prosecution-biased
   PU sample** → this is **recall-on-known-fraud, not a fraud rate**.
+- **No train/test leakage.** The detectors are **unsupervised** — thresholds come from
+  program rules and statistics, not from fitting to the 325 labels — so nothing is
+  trained on the answers, and the labels are prosecutions dated *years after* the loans.
+  (The entity resolver was tuned for match *precision*, not for benchmark lift.) A
+  held-out split only becomes necessary once something is *fit* to the labels — see the
+  temporal-holdout plan (H7) for the learned-scorer path.
 
 Reproduce: `relief-probe ingest && relief-probe fetch-labels && relief-probe resolve-labels && relief-probe benchmark` (the table is `benchmark`'s baseline comparison).
 
