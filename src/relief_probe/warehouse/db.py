@@ -104,6 +104,21 @@ CREATE TABLE IF NOT EXISTS fraud_cases (
     match_confidence DOUBLE             -- 0..1 resolution confidence
 );
 
+-- Staging: raw enforcement press releases (DOJ etc.), pre-resolution. The
+-- entity-resolution step reads these (loan-relevant ones) and produces
+-- fraud_cases rows linked to loan_number. `body` is cleaned text kept so the
+-- resolver can search for loan borrower names appearing verbatim in a release.
+CREATE TABLE IF NOT EXISTS press_releases (
+    id             VARCHAR PRIMARY KEY,   -- stable hash of source_url
+    source         VARCHAR,               -- 'doj'
+    url            VARCHAR,
+    title          VARCHAR,
+    published_date DATE,
+    program        VARCHAR,               -- 'ppp' / 'eidl' / 'both' / 'other'
+    alleged_amount DOUBLE,                 -- best-effort max $ mentioned (heuristic)
+    body           VARCHAR                 -- cleaned release text
+);
+
 -- Output contract: every detector emits rows here.
 -- evidence_json is a JSON string describing why the loan was flagged.
 CREATE TABLE IF NOT EXISTS signals (

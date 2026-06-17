@@ -33,10 +33,19 @@ Still planned (M2.1): `proceeds_anomaly` (payroll-proceed share vs jobs/term),
 
 ## M3 — label construction (the differentiator)
 
-DOJ COVID-fraud press-release scraper + SBA-OIG records → `fraud_cases`, then
-**entity-resolve** (name + state + amount, fuzzy) back to `loan_number`. This is the
-hard, high-value 60%. Record `match_method` / `match_confidence`; keep unmatched
-cases too. Frame as PU positives.
+**Scraper ✅ done** (`labels/doj.py`, `relief-probe fetch-labels`): pages the DOJ
+press-release JSON API by publication date (newest-first), keeps SBA-loan-fraud
+releases (COVID topic OR PPP/EIDL keyword), extracts the scheme amount + program,
+and stages them in `press_releases`. Robust to the API's stray old-dated records
+(whole-page date stop), retries transient errors, stores incrementally per page
+(idempotent on a url hash). Offline-tested (parse/amount/program/idempotency).
+
+**Next (M3.1) — entity resolution:** link `press_releases` → `loans.loan_number`.
+Plan: for each loan-fraud release, search its `body` for loan `borrower_name`s
+appearing verbatim (normalized), disambiguated by state + amount proximity. Write
+`fraud_cases` rows with `match_method` / `match_confidence`; keep unmatched cases
+too. Frame matched loans as PU positives.
+Optional: add SBA-OIG records as a second `source`.
 
 ## M4 — PU forward benchmark (`benchmark/`)
 

@@ -36,6 +36,48 @@ def info() -> None:
         console.print(t)
 
 
+@app.command(name="fetch-labels")
+def fetch_labels(
+    min_year: int = typer.Option(
+        2020, help="Stop paging once releases predate Jan 1 of this year."
+    ),
+    max_pages: int = typer.Option(
+        400, help="Safety cap on pages (250 releases each)."
+    ),
+) -> None:
+    """Scrape DOJ press releases for PPP/EIDL loan-fraud and stage them.
+
+    Pages the DOJ JSON API newest-first, keeps loan-fraud releases, and stores them
+    in `press_releases`. The entity-resolution step (next) links these to loans.
+    """
+    import datetime as dt
+
+    from relief_probe.labels import iter_doj_pages, store_releases
+
+    console.print("[bold]Scraping DOJ press releases[/] (newest-first) …")
+    added = fetched = 0
+    by_program: dict[str, int] = {}
+    # Store per page so a mid-run failure keeps progress (idempotent on id).
+    with connect() as con:
+        for page_idx, rows in enumerate(
+            iter_doj_pages(min_date=dt.date(min_year, 1, 1), max_pages=max_pages),
+            start=1,
+        ):
+            fetched += len(rows)
+            for r in rows:
+                by_program[r["program"]] = by_program.get(r["program"], 0) + 1
+            added += store_releases(con, rows)
+            if page_idx % 25 == 0 or rows:
+                console.print(
+                    f"  page {page_idx}: {fetched:,} loan-fraud releases "
+                    f"({added:,} new)"
+                )
+    console.print(
+        f"[green]Staged {added:,} new releases[/] ({fetched:,} loan-fraud "
+        f"releases seen) — by program: {by_program}."
+    )
+
+
 @app.command()
 def score(
     top: int = typer.Option(25, help="How many ranked loans to print."),
