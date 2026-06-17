@@ -92,6 +92,40 @@ The same four read-only tools (`score_loan`, `peer_compare`, `check_fraud_case`,
 `investigate`) are exposed over MCP (`agent/mcp_server.py`, `relief-probe
 serve-mcp`); `mcp`/LLM deps are imported lazily so the core env stays green.
 
+## M7 — cost-aware LLM triage cascade (planned; run after H2 lands)
+
+Cheap deterministic triage narrows millions of loans to hundreds, then the LLM runs
+**only on that subset** — the right way to use an expensive model at scale.
+
+```
+score (all loans) → top-k → LLM plausibility tier (Haiku 4.5) → re-rank/flag
+   → deep investigate (Opus 4.8) on the top survivors → enriched report
+```
+
+- **Tier 1 — semantic plausibility (the novel signal).** Feed the LLM
+  `borrower_name × NAICS × amount × jobs` and ask whether the business could plausibly
+  justify the loan. World-knowledge catches mismatches pure stats can't reason about
+  ("'Elite Nail Spa LLC', 1 employee, $2.1M, NAICS=landscaping"). Start here.
+- **Tier 2 — press-release corroboration.** LLM reads the matched/nearby DOJ text for a
+  flagged loan and assesses whether it truly corroborates (also lifts label quality, H4).
+- **Tier 3 — narrative synthesis.** Already built (`investigate --llm`).
+- **Tier 4 — LLM-assisted entity resolution.** Rule-based blocking → LLM adjudicates the
+  ambiguous candidates (person names, DBA, fuzzy). Improves label recall/precision.
+
+**Model cascade for cost:** Haiku 4.5 over top-1000 (volume), Opus 4.8 on the top ~25
+(depth). Top-500 × a few cents ≈ a few dollars; NEVER run the LLM over the full
+population.
+
+**Constraints (mirror M5):** deterministic-first + key-gated — builds and tests WITHOUT
+`ANTHROPIC_API_KEY` (mock/skip the LLM calls via `importorskip`/monkeypatch); LLM behind
+the `agent` extra + a `--llm`/`triage` flag. **Hard cap** on how many loans hit the LLM,
+logged, so cost is bounded and visible. New CLI `relief-probe triage --top-k N [--llm]`.
+
+**Honest scope:** the "LLM reads the application form" idea needs forms — PPP supporting
+docs are NOT public, so this cascade runs on structured fields + press-release TEXT, not
+documents. (Forms — synthetic or in a real-work context — would slot into the vision tab
++ an LLM-OCR step later.)
+
 ## Hardening / rigor backlog (post-M6, from the objective self-review)
 
 The build is complete and above-median on breadth + engineering + honesty, but the
