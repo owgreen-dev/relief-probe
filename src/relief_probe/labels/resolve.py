@@ -39,15 +39,31 @@ import pandas as pd
 # Corporate tokens stripped during normalization so "PREMIER CARE STAFFING INC" and
 # "Premier Care Staffing" collapse to the same key.
 _CORP_SUFFIXES = {
+    # Legal entity types + connectors ONLY. We deliberately do NOT strip descriptive
+    # words like GROUP / SERVICES / HOLDINGS / ENTERPRISES — stripping those collapsed
+    # "U.S. SERVICES INC" -> "U S" and "AMERICAN CAPITAL GROUP" -> "AMERICAN CAPITAL",
+    # which then matched huge numbers of unrelated loans. Keep them as name tokens.
     "INC", "INCORPORATED", "LLC", "LLP", "LP", "LTD", "CO", "COMPANY", "CORP",
-    "CORPORATION", "PLLC", "PLC", "PC", "PA", "GROUP", "HOLDINGS", "ENTERPRISES",
-    "ENTERPRISE", "SERVICES", "SVCS", "DBA", "THE", "AND", "OF",
+    "CORPORATION", "PLLC", "PLC", "PC", "PA", "DBA", "THE", "AND", "OF",
 }
 _NONALNUM = re.compile(r"[^A-Z0-9 ]+")
 _WS = re.compile(r"\s+")
 
 # Longest candidate org-name n-gram we'll consider (tokens).
 _MAX_NGRAM = 6
+
+# Boilerplate phrases that appear in ~every DOJ release — never a borrower name, even
+# if a loan happens to be named this. Without this, "UNITED STATES" (from "United
+# States Attorney/District Court") matches any loan literally named "United States".
+_GENERIC_NAMES = {
+    "UNITED STATES", "UNITED STATES DISTRICT", "UNITED STATES ATTORNEY",
+    "DISTRICT COURT", "ATTORNEYS OFFICE", "JUSTICE DEPARTMENT", "DEPARTMENT JUSTICE",
+    "SMALL BUSINESS", "SMALL BUSINESS ADMINISTRATION", "BUSINESS ADMINISTRATION",
+    "PAYCHECK PROTECTION", "PAYCHECK PROTECTION PROGRAM", "PROTECTION PROGRAM",
+    "ECONOMIC INJURY", "ECONOMIC INJURY DISASTER", "DISASTER LOAN", "GRAND JURY",
+    "INTERNAL REVENUE", "INTERNAL REVENUE SERVICE", "SOCIAL SECURITY",
+    "FEDERAL BUREAU", "PUBLIC RELATIONS", "INSPECTOR GENERAL",
+}
 
 US_STATES = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
@@ -67,8 +83,6 @@ US_STATES = {
 }
 
 ACCEPT_THRESHOLD = 0.6
-# A name mapping to more than this many loans is too generic to accept on name alone.
-MAX_AMBIGUITY = 25
 
 
 def _normalize_tokens(text: str | None) -> list[str]:
@@ -96,7 +110,9 @@ def extract_candidates(text: str, *, n_min: int = 2, n_max: int = _MAX_NGRAM) ->
     out: set[str] = set()
     for n in range(n_min, n_max + 1):
         for i in range(len(toks) - n + 1):
-            out.add(" ".join(toks[i : i + n]))
+            key = " ".join(toks[i : i + n])
+            if key not in _GENERIC_NAMES:
+                out.add(key)
     return out
 
 
@@ -170,7 +186,6 @@ def resolve_release(
         hits = index.get(key)
         if not hits:
             continue
-        ambiguous = len(hits) > MAX_AMBIGUITY
         n_tokens = len(key.split())
         for loan_number, state, amount in hits:
             conf, method = score_match(
@@ -180,8 +195,12 @@ def resolve_release(
                 alleged_amount=alleged,
                 text=text,
             )
-            # A too-generic name needs corroboration beyond the name itself.
-            if ambiguous and method == "name":
+            # Precision gate: require AMOUNT corroboration (the loan's dollar figure,
+            # exactly or ~, in the release). Name+state alone is unreliable — short
+            # n-grams from prose coincide with loan names ("A WIRE" <- "wire fraud",
+            # "NEW HAMPSHIRE" <- the state) and the state is always present in a DOJ
+            # release. The dollar figure is the discriminating signal.
+            if "amount" not in method:
                 continue
             if conf < threshold:
                 continue
