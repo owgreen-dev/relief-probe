@@ -36,6 +36,68 @@ def info() -> None:
         console.print(t)
 
 
+@app.command(name="vision-demo")
+def vision_demo(
+    n_per_class: int = typer.Option(60, help="Synthetic images per class."),
+) -> None:
+    """Generate synthetic clean/forged docs, train the ELA detector, report accuracy.
+
+    Self-contained (no downloads). For real data, point training at a folder of
+    `authentic/` + `forged/` images (see relief_probe.vision.datasets).
+    """
+    try:
+        from relief_probe.vision.datasets import make_synthetic
+        from relief_probe.vision.model import train
+    except ImportError:
+        console.print("[yellow]Needs the vision extra:[/] uv sync --extra vision")
+        raise typer.Exit(code=1) from None
+
+    from relief_probe.config import data_dir
+
+    synth = data_dir() / "vision_synth"
+    model_path = data_dir() / "models" / "doc_authenticity.joblib"
+    console.print(f"Generating {n_per_class}×2 synthetic documents …")
+    make_synthetic(synth, n_per_class=n_per_class)
+    console.print("Training ELA classifier …")
+    summary = train(synth, out_path=model_path)
+    console.print(
+        f"[green]Trained[/] on {summary['n_images']} images "
+        f"({summary['n_authentic']} authentic / {summary['n_forged']} forged): "
+        f"CV accuracy [bold]{summary['cv_accuracy_mean']:.1%}[/] "
+        f"± {summary['cv_accuracy_std']:.1%} ({summary['cv_folds']}-fold). "
+        f"Model: {summary['out_path']}"
+    )
+    console.print(
+        "[dim]ELA flags recompression/splice artifacts, not 'fraud' — a screening "
+        "aid. See RESPONSIBLE_USE.md.[/]"
+    )
+
+
+@app.command(name="vision-score")
+def vision_score(
+    image: str = typer.Argument(..., help="Path to an image to score."),
+) -> None:
+    """Score one image's forgery probability with the trained ELA detector."""
+    try:
+        from PIL import Image
+
+        from relief_probe.vision.model import forgery_probability, load_model
+    except ImportError:
+        console.print("[yellow]Needs the vision extra:[/] uv sync --extra vision")
+        raise typer.Exit(code=1) from None
+
+    from relief_probe.config import data_dir
+
+    model_path = data_dir() / "models" / "doc_authenticity.joblib"
+    if not model_path.exists():
+        console.print("[yellow]No model.[/] Run `relief-probe vision-demo` first.")
+        raise typer.Exit(code=1)
+    model = load_model(model_path)
+    with Image.open(image) as img:
+        p = forgery_probability(model, img)
+    console.print(f"P(forged) = [bold]{p:.1%}[/] for {image}")
+
+
 @app.command()
 def benchmark() -> None:
     """Forward PU validation: how strongly prosecuted loans rank at the top.

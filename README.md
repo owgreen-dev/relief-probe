@@ -17,28 +17,47 @@ PPP fraud is estimated at ~$200B (SBA-OIG), but **confirmed/charged fraud is a t
 Layers mirror a real program-integrity shop; each is independently demoable:
 
 ```
-ingest/      Layer 1 — Warehouse:    resolve + download public SBA CSVs → DuckDB (one row per loan)
-detectors/   Layer 2 — Detection:    self-contained scheme modules → unified signals table
-benchmark/   Layer 3 — Validation:   rank loans, measure how charged-fraud concentrates at the top (PU forward validation)
-agent/       Layer 4 — Investigation: agentic, tool-grounded loan-investigator + MCP server
-vision/      Layer 5 — Documents:    supporting-document authenticity (ID-forgery + amount-tamper) tab
+ingest/      Layer 1 — Warehouse:    resolve + download public SBA CSVs → DuckDB (one row per loan)   ✅
+detectors/   Layer 2 — Detection:    self-contained scheme modules → unified signals table             ✅
+labels/      Layer 3 — Labels:       scrape DOJ enforcement → entity-resolve to loan_number             ✅
+benchmark/   Layer 4 — Validation:   rank loans, measure how charged-fraud concentrates at the top      ✅
+vision/      Layer 5 — Documents:    supporting-document authenticity (ELA forgery detection) tab        ✅
+agent/       Layer 6 — Investigation: agentic, tool-grounded loan-investigator + MCP server          (planned)
 ```
 
 Output contract: every detector emits `(loan_number, detector_id, score, evidence_json)` into one `signals` table.
 
+## Headline result
+
+Score the **965,122** loans in the public $150k+ slice with two transparent detectors, rank by a simple composite, and validate against **325** DOJ-prosecuted loans entity-resolved from 3,414 enforcement press releases (base rate 0.034%):
+
+| top-k | precision@k | **lift** | recall |
+| --- | --- | --- | --- |
+| 100 | 1.00% | **29.7×** | 0.3% |
+| 500 | 0.80% | **23.8×** | 1.2% |
+| 1000 | 0.50% | **14.8×** | 1.5% |
+
+Read honestly: ~24–30× enrichment at the top is real signal (comparable to a Medicare-FWA equivalent), but absolute recall is tiny and labels are a **prosecution-biased PU sample** — so these are **recall-on-known-fraud, a lower bound**, not a fraud rate. Reproduce: `relief-probe ingest && relief-probe fetch-labels && relief-probe resolve-labels && relief-probe benchmark`.
+
 ## Status
 
-Early build. **Done:** warehouse schema (`loans` / `fraud_cases` / `signals`), PPP FOIA ingest (resolve → download → column-mapped load), CLI (`info`, `ingest`), offline loader tests.
+Layers 1–5 built, tested (23 tests), and verified on real data; agent/MCP (Layer 6) is the main remaining piece. See [NEXT_STEPS.md](NEXT_STEPS.md).
 
-**Next (see [NEXT_STEPS.md](NEXT_STEPS.md)):** loan-level detectors → DOJ-label scraper + entity resolution → PU forward benchmark → agent + MCP → document-authenticity vision tab (anchors: IDNet, "Find it again!").
+- **Detectors:** `naics_cohort_outlier` (robust cohort z-score, BH-FDR) · `payroll_cap_exceedance` (per-employee program ceiling).
+- **Labels:** DOJ press-release scraper + precision-tuned entity resolution (amount-corroborated) → 325 high-precision labels.
+- **Vision:** ELA document-forgery detector + Streamlit dashboard (Loan-leads + Document-authenticity tabs).
 
 ## Quickstart
 
 ```bash
-uv run --with pytest pytest          # offline tests
-uv run relief-probe ingest --slice 150k_plus   # ~1M big-dollar loans (fast)
-uv run relief-probe ingest --slice all         # ~11.5M loans (~8 GB)
-uv run relief-probe info                        # warehouse + row counts
+uv run --with pytest pytest                         # offline tests (23)
+uv run relief-probe ingest --slice 150k_plus        # ~1M big-dollar loans (~430 MB)
+uv run relief-probe score                           # run detectors → ranked leads
+uv run relief-probe fetch-labels                    # scrape DOJ enforcement releases
+uv run relief-probe resolve-labels                  # entity-resolve → fraud_cases labels
+uv run relief-probe benchmark                       # forward PU lift@k + ablation
+uv run --extra vision relief-probe vision-demo      # train the ELA doc-forgery detector
+uv run --extra viz --extra vision streamlit run app/dashboard.py   # dashboard (2 tabs)
 ```
 
 ## Data sources
@@ -46,8 +65,9 @@ uv run relief-probe info                        # warehouse + row counts
 | source | role | status |
 | --- | --- | --- |
 | SBA PPP FOIA loan-level data (data.sba.gov) | core loan population | ✅ ingested |
-| DOJ COVID-fraud prosecutions / SBA-OIG | benchmark labels (PU positives) | planned |
-| IDNet (synthetic ID forgery) · "Find it again!" (receipt tamper) | document-authenticity vision tab | planned |
+| DOJ COVID-fraud prosecution press releases | benchmark labels (PU positives) | ✅ scraped + resolved |
+| Synthetic spliced documents (built-in) | vision train/eval (offline) | ✅ |
+| IDNet (synthetic ID forgery) · "Find it again!" (receipt tamper) | real vision anchors | wired (opt-in) |
 
 ## License
 

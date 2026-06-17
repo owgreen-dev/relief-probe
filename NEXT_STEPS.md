@@ -31,7 +31,7 @@ pattern. Both detectors corroborate (n=2) on most.
 Still planned (M2.1): `proceeds_anomaly` (payroll-proceed share vs jobs/term),
 `duplicate_identity` (shared address/borrower ring signal), `lender_concentration`.
 
-## M3 — label construction (the differentiator)
+## M3 — label construction ✅ (done, the differentiator)
 
 **Scraper ✅ done** (`labels/doj.py`, `relief-probe fetch-labels`): pages the DOJ
 press-release JSON API by publication date (newest-first), keeps SBA-loan-fraud
@@ -40,17 +40,14 @@ and stages them in `press_releases`. Robust to the API's stray old-dated records
 (whole-page date stop), retries transient errors, stores incrementally per page
 (idempotent on a url hash). Offline-tested (parse/amount/program/idempotency).
 
-**Entity resolution ✅ drafted** (`labels/resolve.py`, `relief-probe resolve-labels`):
-normalizes loan borrower names into an index, scans each release's text for every
-contiguous n-gram (no fragile boundary detection), and accepts a loan as a label only
-when the name match is corroborated by the loan's **state** and/or **amount** appearing
-in the release (confidence-scored, threshold 0.6; generic names need corroboration).
-Writes `fraud_cases` with `match_method` / `match_confidence`. Offline-tested.
+**Entity resolution ✅ done + precision-tuned on real data** (`labels/resolve.py`,
+`relief-probe resolve-labels`): n-gram name match against a loan-name index, accepted
+only with **amount corroboration** (loan's dollar figure in the release, exact or ~);
+descriptive words kept (only legal entity types stripped); boilerplate stoplist. Hand-
+checking the naive version (which was ~88% false positives) drove each rule. Result:
+**325 high-precision labeled loans** from 3,414 staged releases (2020-02→2026-06).
 Limitations (documented): misses person-name sole-props, DBA/misspellings (no fuzzy
 edit distance yet); precision-first by design (false labels poison the benchmark).
-
-**Run it for real** once the backfill completes: `relief-probe resolve-labels`.
-Then sanity-check matched loans by hand before trusting them.
 Optional later: SBA-OIG records as a second `source`; person-name + fuzzy matching.
 
 Context: there is NO public per-loan label list (the 2026 "562K referred loans" are
@@ -69,16 +66,35 @@ Ablation: payroll_cap drives the very top; naics_cohort peaks ~35×@250.
 Still planned (M4.1): optional learned PU scorer vs the transparent baseline on the
 same split (`ml` extra); ingest the `under_150k`/`all` slices to broaden recall.
 
-## M5 — agent + MCP (`agent/`)
+## M6 — document-authenticity vision tab ✅ (done)
+
+`vision/` (`vision` extra) + `app/dashboard.py` Streamlit tab. **Error Level Analysis**
+features (`ela.py`) → scikit-learn classifier (`model.py`), CPU-friendly, no GPU/large
+download. `datasets.py` ships a deterministic synthetic clean/spliced generator (so the
+pipeline + tests run offline) and resolvers/notes for the real anchors (Find-it-again
+direct zip; IDNet CC0 ~400 GB). CLI `vision-demo` / `vision-score`. Synthetic CV
+accuracy >0.9; dashboard verified end-to-end (uploaded a spliced doc → ELA heatmap +
+P(forged)=100%). Honest gap stated: no public fake-paystub/bank-statement dataset
+exists, so financial-doc tamper is shown on synthesized edits, not leaked fakes.
+
+Dashboard (`app/dashboard.py`, `viz`+`vision` extras): two tabs — **Loan leads**
+(composite ranking + counts) and **Document authenticity** (upload → ELA + score).
+Run: `uv run --extra viz --extra vision streamlit run app/dashboard.py`.
+
+## M5 — agent + MCP (`agent/`) — still planned
 
 Tool-grounded loan investigator (profile, signals, peer comparison, fraud-case
 check) → structured, evidence-cited report. Expose the same tools over MCP.
 
-## M6 — document-authenticity vision tab (`vision/`)
+## Remaining / optional
 
-`vision` extra. Anchors: **IDNet** (ID forgery — face morph / portrait swap / text
-alter) and **"Find it again!"** (receipt amount-tamper). State the gap up front:
-no public fake-paystub/bank-statement dataset exists — synthesize and say so.
+- **M5** agent + MCP (above).
+- **M2.1** more detectors (duplicate-address rings, proceeds anomalies, lender
+  concentration) to lift recall.
+- **M4.1** learned PU scorer vs the transparent baseline (`ml` extra); ingest
+  `under_150k`/`all` slices to broaden label coverage.
+- Real vision data (IDNet / Find-it-again) + a CNN baseline vs ELA.
+- Merge `feature/detectors` → `main`; rewrite README around the M4 headline.
 
 ## Watch-outs
 
