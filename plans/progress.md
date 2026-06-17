@@ -141,3 +141,45 @@ Verify: `uv run pytest && uv run ruff check .`
 - Verification: 41 passed, ruff clean.
 
 ---
+
+### Task: T-004 - agent/mcp_server.py + `relief-probe serve-mcp`
+
+**What was implemented:**
+- `agent/mcp_server.py` exposing four read-only MCP tools that delegate to the
+  existing pure-Python layer: `score_loan` (→ `composite_for`), `peer_compare`
+  (→ `peer_comparison`), `check_fraud_case` (→ `fraud_case_check`), `investigate`
+  (→ deterministic `graph.investigate`, serialized via `dataclasses.asdict`).
+- `build_server(db_path=None)` imports `mcp.server.fastmcp.FastMCP` LAZILY and
+  raises a clear RuntimeError if the `agent` extra is missing. Each tool opens
+  its own `connect(db_path, read_only=True)` connection — the server never writes.
+- `TOOL_NAMES` constant is the stable public surface; `main()` runs over stdio.
+- CLI `relief-probe serve-mcp`: guarded (yellow hint + exit 1 if extra absent);
+  startup notice is printed to **stderr** so it can't corrupt the stdio JSON-RPC
+  stream. Imports `Console(stderr=True)` for that line.
+- `tests/test_mcp_server.py`: 4 tests. Two run in the core env (module imports
+  without the extra; `build_server` raises RuntimeError when `mcp` import is
+  blocked via monkeypatched `__import__`). Two use `pytest.importorskip('mcp')`
+  and assert the registry exposes exactly the four documented tools (via
+  `asyncio.run(server.list_tools())`) each with a description.
+- README: Layer 6 marked ✅, status section + quickstart updated (investigate /
+  serve-mcp commands). NEXT_STEPS: M5 marked done.
+
+**Files changed:**
+- src/relief_probe/agent/mcp_server.py (new)
+- src/relief_probe/cli.py (serve-mcp command)
+- tests/test_mcp_server.py (new)
+- README.md, NEXT_STEPS.md, plans/prd.json, plans/progress.md
+
+**Learnings:**
+- FastMCP's public introspection API is `await server.list_tools()` (async) →
+  list of `Tool` objects with `.name` / `.description`. Tests call it via
+  `asyncio.run(...)` — no network/stdio, no pytest-asyncio plugin needed.
+- `@server.tool(name="...")` accepts an explicit name kwarg; the docstring
+  becomes the tool description, so keeping the disclaimer in each docstring keeps
+  it visible to MCP clients.
+- This env actually HAS the `agent` extra installed, so all 4 MCP tests ran
+  (not skipped) and validated the FastMCP API for real. In a bare core env the
+  two importorskip tests skip cleanly.
+- Verification: 45 passed, ruff clean. **All T-001..T-004 complete.**
+
+---

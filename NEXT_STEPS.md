@@ -81,14 +81,19 @@ Dashboard (`app/dashboard.py`, `viz`+`vision` extras): two tabs — **Loan leads
 (composite ranking + counts) and **Document authenticity** (upload → ELA + score).
 Run: `uv run --extra viz --extra vision streamlit run app/dashboard.py`.
 
-## M5 — agent + MCP (`agent/`) — still planned
+## M5 — agent + MCP (`agent/`) ✅ (done)
 
-Tool-grounded loan investigator (profile, signals, peer comparison, fraud-case
-check) → structured, evidence-cited report. Expose the same tools over MCP.
+Tool-grounded, **deterministic-first** loan investigator (profile, signals, peer
+comparison, fraud-case check, composite) → structured, evidence-cited report
+(`agent/tools.py`, `agent/report.py`, `agent/graph.py`, `relief-probe
+investigate`). The default path is pure Python and fully tested without the
+`agent` extra; `--llm` only rewrites the summary prose from the same cited facts.
+The same four read-only tools (`score_loan`, `peer_compare`, `check_fraud_case`,
+`investigate`) are exposed over MCP (`agent/mcp_server.py`, `relief-probe
+serve-mcp`); `mcp`/LLM deps are imported lazily so the core env stays green.
 
 ## Remaining / optional
 
-- **M5** agent + MCP (above).
 - **M2.1** more detectors (duplicate-address rings, proceeds anomalies, lender
   concentration) to lift recall.
 - **M4.1** learned PU scorer vs the transparent baseline (`ml` extra); ingest

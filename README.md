@@ -22,7 +22,7 @@ detectors/   Layer 2 — Detection:    self-contained scheme modules → unified
 labels/      Layer 3 — Labels:       scrape DOJ enforcement → entity-resolve to loan_number             ✅
 benchmark/   Layer 4 — Validation:   rank loans, measure how charged-fraud concentrates at the top      ✅
 vision/      Layer 5 — Documents:    supporting-document authenticity (ELA forgery detection) tab        ✅
-agent/       Layer 6 — Investigation: agentic, tool-grounded loan-investigator + MCP server          (planned)
+agent/       Layer 6 — Investigation: agentic, tool-grounded loan-investigator + MCP server             ✅
 ```
 
 Output contract: every detector emits `(loan_number, detector_id, score, evidence_json)` into one `signals` table.
@@ -41,11 +41,12 @@ Read honestly: ~24–30× enrichment at the top is real signal (comparable to a 
 
 ## Status
 
-Layers 1–5 built, tested (23 tests), and verified on real data; agent/MCP (Layer 6) is the main remaining piece. See [NEXT_STEPS.md](NEXT_STEPS.md).
+All six layers built, tested, and verified on real data. See [NEXT_STEPS.md](NEXT_STEPS.md).
 
 - **Detectors:** `naics_cohort_outlier` (robust cohort z-score, BH-FDR) · `payroll_cap_exceedance` (per-employee program ceiling).
 - **Labels:** DOJ press-release scraper + precision-tuned entity resolution (amount-corroborated) → 325 high-precision labels.
 - **Vision:** ELA document-forgery detector + Streamlit dashboard (Loan-leads + Document-authenticity tabs).
+- **Agent/MCP:** tool-grounded, deterministic-first loan investigator (`relief-probe investigate`) and an MCP server (`relief-probe serve-mcp`) over the same four read-only warehouse tools.
 
 ## Quickstart
 
@@ -57,6 +58,8 @@ uv run relief-probe fetch-labels                    # scrape DOJ enforcement rel
 uv run relief-probe resolve-labels                  # entity-resolve → fraud_cases labels
 uv run relief-probe benchmark                       # forward PU lift@k + ablation
 uv run --extra vision relief-probe vision-demo      # train the ELA doc-forgery detector
+uv run relief-probe investigate <loan_number>       # grounded, evidence-cited lead report
+uv run --extra agent relief-probe serve-mcp         # serve the 4 read-only tools over MCP
 uv run --extra viz --extra vision streamlit run app/dashboard.py   # dashboard (2 tabs)
 ```
 

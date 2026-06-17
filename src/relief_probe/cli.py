@@ -353,6 +353,29 @@ def investigate(
     console.print(f"[dim]{report.disclaimer}[/]")
 
 
+@app.command(name="serve-mcp")
+def serve_mcp() -> None:
+    """Serve the four read-only investigator tools over MCP (stdio).
+
+    Exposes `score_loan`, `peer_compare`, `check_fraud_case`, and `investigate`
+    to an MCP client (e.g. Claude Desktop). Needs the `agent` extra
+    (`uv sync --extra agent`). Every tool is read-only — the server never writes
+    to the warehouse, and reports remain leads for review, not evidence of fraud.
+    """
+    from relief_probe.agent.mcp_server import build_server
+
+    try:
+        server = build_server()
+    except RuntimeError as exc:
+        console.print(f"[yellow]{exc}[/]")
+        raise typer.Exit(code=1) from None
+    # Startup notice goes to stderr so it never corrupts the stdio JSON-RPC stream.
+    Console(stderr=True).print(
+        "[green]relief-probe MCP server[/] — 4 read-only tools, stdio. Ctrl-C to stop."
+    )
+    server.run()
+
+
 @app.command()
 def ingest(
     slice_name: str = typer.Option(

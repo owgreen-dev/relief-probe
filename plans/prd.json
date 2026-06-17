@@ -73,7 +73,8 @@
         "Verification passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "Keep the tool surface thin — delegate to agent.tools/graph. The importorskip test keeps the loop green in the core env."
     }
   ]
