@@ -14,17 +14,22 @@ Prioritized backlog for relief-probe. Status as of the initial scaffold.
 - **Tests**: offline loader tests (real header, type/round-trip, idempotency) — 2 passing.
 - Verified the live resolver returns real URLs (1 file / 13 files).
 
-## M2 — loan-level detectors (`detectors/`, register in `registry.py`)
+## M2 — loan-level detectors ✅ (done)
 
-Reuse `stats.py` (robust-z, BH-FDR) and the `Detector`/`Signal` base. Candidates:
-- `naics_cohort_outlier` — loan $ per job reported, robust-scored within NAICS×state
-  cohorts (log1p, median/MAD, FDR-controlled). The flagship, analogous to probity's
-  peer-cohort detector.
-- `threshold_bunching` — amounts clustered just under known caps (the $20,833
-  sole-proprietor ceiling, $2M second-draw cap).
-- `proceeds_anomaly` — payroll-proceed share implausible vs jobs/term.
-- `duplicate_identity` — same address/borrower across many loans (ring signal).
-- `lender_concentration` — originating lender's book skewed to flagged loans.
+Two complementary detectors over public loan fields, reusing `stats.py` + `_cohort.py`:
+- `naics_cohort_outlier` — loan $ per reported job, robust-scored (log1p median/MAD,
+  BH-FDR) within NAICS×state cohorts. The flagship (relative signal). 4,350 signals.
+- `payroll_cap_exceedance` — loan $/job above the program's per-employee payroll
+  ceiling ($20,833; $29,167 for NAICS 72) by ≥1.5×. Absolute, program-rule signal.
+  14,431 signals.
+
+Plus `detectors/runner.py` (run all → persist `signals`), `scoring.py`
+(`max(score) + 0.5·(n−1)` composite), and `relief-probe score`. On the real 965k-loan
+warehouse the top leads are all $2M–$6.5M loans claiming **1 job** — the textbook
+pattern. Both detectors corroborate (n=2) on most.
+
+Still planned (M2.1): `proceeds_anomaly` (payroll-proceed share vs jobs/term),
+`duplicate_identity` (shared address/borrower ring signal), `lender_concentration`.
 
 ## M3 — label construction (the differentiator)
 

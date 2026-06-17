@@ -37,6 +37,58 @@ def info() -> None:
 
 
 @app.command()
+def score(
+    top: int = typer.Option(25, help="How many ranked loans to print."),
+) -> None:
+    """Run all detectors, persist signals, and print the ranked lead list."""
+    from relief_probe.detectors.runner import run_all
+    from relief_probe.scoring import composite_ranking
+
+    with connect() as con:
+        n_loans = con.execute("SELECT COUNT(*) FROM loans").fetchone()[0]
+        if n_loans == 0:
+            console.print(
+                "[yellow]No loans in the warehouse.[/] Run "
+                "`relief-probe ingest` first."
+            )
+            raise typer.Exit(code=1)
+
+        console.print(f"Running detectors over [bold]{n_loans:,}[/] loans …")
+        counts = run_all(con)
+        for det_id, n in counts.items():
+            console.print(f"  {det_id}: [bold]{n:,}[/] signals")
+
+        ranking = composite_ranking(con, limit=top)
+
+    if ranking.empty:
+        console.print("[yellow]No loans flagged.[/]")
+        return
+
+    t = Table(title=f"Top {top} leads by composite risk score")
+    cols = ("loan_number", "borrower_name", "naics", "st", "amount",
+            "jobs", "score", "n", "detectors")
+    for col in cols:
+        t.add_column(col)
+    for r in ranking.itertuples(index=False):
+        t.add_row(
+            str(r.loan_number),
+            (r.borrower_name or "")[:28],
+            str(r.naics_code or ""),
+            str(r.state or ""),
+            f"${r.amount:,.0f}" if r.amount is not None else "",
+            f"{r.jobs_reported:g}" if r.jobs_reported is not None else "",
+            f"{r.composite_score:.2f}",
+            str(r.n_signals),
+            ", ".join(r.detectors),
+        )
+    console.print(t)
+    console.print(
+        "[dim]A high score is a statistical lead for review, not evidence of "
+        "fraud. See RESPONSIBLE_USE.md.[/]"
+    )
+
+
+@app.command()
 def ingest(
     slice_name: str = typer.Option(
         "150k_plus",
