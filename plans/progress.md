@@ -102,3 +102,42 @@ Verify: `uv run pytest && uv run ruff check .`
 - Verification: 38 passed, ruff clean.
 
 ---
+
+### Task: T-003 - agent/graph.py investigate() + `relief-probe investigate` CLI
+
+**What was implemented:**
+- `agent/graph.py` with `investigate(con, loan_number, *, use_llm=False) ->
+  {report, telemetry}`. Default path is pure Python: `gather_evidence ->
+  build_report`. Telemetry = `{path, tool_calls, use_llm}` (+ `model` on LLM path).
+- `tool_calls` counts the evidence keys minus `loan_number` (= 5: profile,
+  signals, peer_comparison, fraud_case, composite).
+- LLM path (`use_llm=True`): imports `langchain_anthropic` LAZILY inside
+  `_synthesize_narrative`; gathers the SAME deterministic evidence + builds the
+  SAME grounded report, then asks `claude-opus-4-8` (temp 0) to rewrite ONLY the
+  summary prose from the cited facts via `dataclasses.replace`. Risk level,
+  evidence rows, disclaimer stay deterministic — model can reword, never re-rank
+  or invent. Raises clear RuntimeError if the `agent` extra OR ANTHROPIC_API_KEY
+  is missing.
+- CLI `relief-probe investigate <loan_number> [--llm/--no-llm]`: opens warehouse
+  read-only, exits cleanly if loan absent, prints risk + summary + evidence table
+  (rich) + alternatives + next steps + disclaimer. Catches RuntimeError (missing
+  extra/key) and prints a yellow hint instead of a traceback.
+- `tests/test_agent_graph.py`: deterministic investigate on seeded outlier ->
+  critical + cited evidence + telemetry (tool_calls==5); clean loan -> low; LLM
+  test uses `pytest.importorskip('langchain_anthropic')` so core env skips it.
+
+**Files changed:**
+- src/relief_probe/agent/graph.py (new)
+- src/relief_probe/cli.py (investigate command)
+- tests/test_agent_graph.py (new)
+
+**Learnings:**
+- LLM grounding strategy: don't let the model produce the report structure — let
+  it reword the deterministic summary only. The grounded EvidenceItems and risk
+  band are computed in Python, so the LLM cannot fabricate or re-rank.
+- `ChatAnthropic.invoke().content` can be a str OR a list of content blocks;
+  flatten defensively before stripping.
+- CLI uses `connect(read_only=True)` — investigate never writes.
+- Verification: 41 passed, ruff clean.
+
+---

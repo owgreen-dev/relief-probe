@@ -57,7 +57,8 @@
         "Verification passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "Deterministic path is the gate. Telemetry can be simple (tool_calls count, path='deterministic'/'llm'). Mirror probity's investigate ergonomics."
     },
     {

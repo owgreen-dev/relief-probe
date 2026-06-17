@@ -285,6 +285,75 @@ def score(
 
 
 @app.command()
+def investigate(
+    loan_number: str = typer.Argument(..., help="The loan_number to investigate."),
+    llm: bool = typer.Option(
+        False,
+        "--llm/--no-llm",
+        help="Synthesize the narrative with claude-opus-4-8 (needs the `agent` "
+        "extra + ANTHROPIC_API_KEY). Default is the deterministic path.",
+    ),
+) -> None:
+    """Investigate one loan: gather read-only evidence and print a grounded report.
+
+    The default path is pure-Python and deterministic. `--llm` rewrites only the
+    summary prose from the same tool-fetched facts. A populated report is a
+    statistical lead for review, not evidence of fraud — see RESPONSIBLE_USE.md.
+    """
+    from relief_probe.agent.graph import investigate as run_investigate
+
+    with connect(read_only=True) as con:
+        n = con.execute(
+            "SELECT COUNT(*) FROM loans WHERE loan_number = ?", [loan_number]
+        ).fetchone()[0]
+        if n == 0:
+            console.print(f"[yellow]No loan[/] {loan_number} in the warehouse.")
+            raise typer.Exit(code=1)
+        try:
+            result = run_investigate(con, loan_number, use_llm=llm)
+        except RuntimeError as exc:
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=1) from None
+
+    report = result["report"]
+    telemetry = result["telemetry"]
+
+    _risk_styles = {
+        "low": "green",
+        "elevated": "yellow",
+        "high": "red",
+        "critical": "bold red",
+    }
+    style = _risk_styles.get(report.risk_level, "white")
+    console.print(
+        f"[bold]Loan {report.loan_number}[/] — risk "
+        f"[{style}]{report.risk_level.upper()}[/] "
+        f"[dim]({telemetry['path']} path, {telemetry['tool_calls']} tools)[/]"
+    )
+    console.print(report.summary)
+
+    if report.evidence:
+        t = Table(title="Evidence (every row cites its source)")
+        t.add_column("claim")
+        t.add_column("source")
+        t.add_column("detail")
+        for item in report.evidence:
+            t.add_row(item.claim, item.source, item.detail)
+        console.print(t)
+
+    if report.alternative_explanations:
+        console.print("[bold]Alternative explanations[/]")
+        for alt in report.alternative_explanations:
+            console.print(f"  • {alt}")
+    if report.recommended_next_steps:
+        console.print("[bold]Recommended next steps[/]")
+        for step in report.recommended_next_steps:
+            console.print(f"  • {step}")
+
+    console.print(f"[dim]{report.disclaimer}[/]")
+
+
+@app.command()
 def ingest(
     slice_name: str = typer.Option(
         "150k_plus",
