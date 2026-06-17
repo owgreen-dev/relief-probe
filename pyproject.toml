@@ -33,6 +33,14 @@ vision = ["pillow>=10.0", "scikit-learn>=1.4"]
 [project.scripts]
 relief-probe = "relief_probe.cli:app"
 
+# Test runner + the deps tests import at module load live in a dev group, so
+# `uv run pytest` self-provisions them in the project env (dev groups install by
+# default). pillow/scikit-learn mirror the `vision` extra because
+# tests/test_vision imports PIL unconditionally; the agent extra stays opt-in
+# (its tests use pytest.importorskip and skip cleanly in the core env).
+[dependency-groups]
+dev = ["pytest>=8.0", "pillow>=10.0", "scikit-learn>=1.4"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

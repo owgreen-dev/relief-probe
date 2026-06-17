@@ -24,7 +24,8 @@
         "Verification passes (uv run pytest && uv run ruff check .)"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "Foundation for everything else. Read-only; never writes. Reuse warehouse.connect. Parse evidence_json with json.loads. Cohort logic can mirror detectors/naics_cohort_outlier (NAICS x state, amount/jobs)."
     },
     {
