@@ -92,14 +92,38 @@ The same four read-only tools (`score_loan`, `peer_compare`, `check_fraud_case`,
 `investigate`) are exposed over MCP (`agent/mcp_server.py`, `relief-probe
 serve-mcp`); `mcp`/LLM deps are imported lazily so the core env stays green.
 
-## Remaining / optional
+## Hardening / rigor backlog (post-M6, from the objective self-review)
 
-- **M2.1** more detectors (duplicate-address rings, proceeds anomalies, lender
-  concentration) to lift recall.
-- **M4.1** learned PU scorer vs the transparent baseline (`ml` extra); ingest
-  `under_150k`/`all` slices to broaden label coverage.
-- Real vision data (IDNet / Find-it-again) + a CNN baseline vs ELA.
-- Merge `feature/detectors` → `main`; rewrite README around the M4 headline.
+The build is complete and above-median on breadth + engineering + honesty, but the
+*analytical* claim is fragile. Objective findings to fix, in priority order:
+
+- **H1 — Baseline comparison (credibility gap #1).** The "lift" rests on single-digit
+  hits AND the cohort-z+FDR machinery barely beats a one-line `ORDER BY amount/jobs
+  DESC`. Measured on the 150k+ slice (325 labels, base 0.034%):
+  - composite (detectors+FDR+z): lift@100 29.7× (1 hit), @500 23.8× (4), @1000 14.8× (5)
+  - trivial (sort by $/job):     lift@100 29.7× (1), @500 11.9× (2), @1000 14.8× (5)
+  - dumbest (sort by loan $):    lift@100 0×, @500 0×, @1000 5.9× (2)
+  So $/job is the real signal (beats raw amount), but the fancy stats add little.
+  **Fix:** build baseline rankings into `benchmark` + CLI, and put the honest
+  comparison in the README — showing you stress-tested your own method is the senior move.
+- **H2 — Ingest `under_150k`/`all` (~8 GB).** 10× more loans → more labels → hit counts
+  in the dozens, so lift stops resting on one loan. Highest-leverage rigor fix.
+  (After ingest: re-run `score` + `resolve-labels` + `benchmark` on the full set.)
+- **H3 — Bootstrap CIs on lift@k.** Stop quoting point estimates on n=1–8 hits.
+- **H4 — Measure label precision** on a ~50-row hand-labeled sample → report a number,
+  not "high-precision."
+- **H5 — Vision honesty.** ELA hits ~100% on *engineered* synthetic splices → proves
+  plumbing, not document-fraud detection. Either run on real IDNet/Find-it-again, or
+  label the tab explicitly as a synthetic plumbing demo. Don't let "100%" stand naked.
+- **H6 — One genuinely independent detector** (duplicate-address rings / lender
+  concentration) so "corroboration" isn't two views of the same $/job ratio.
+
+Also still open: M4.1 learned PU scorer (`ml` extra); real vision data + CNN vs ELA.
+
+### In progress
+- **Loop (branch `ralph/hardening`):** H1 baseline machinery + H5 vision honesty.
+- **Background:** H2 full-slice ingest.
+- **Finalize (manual, on real full data):** regenerate the README baseline numbers.
 
 ## Watch-outs
 
