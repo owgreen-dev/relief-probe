@@ -9,7 +9,8 @@
   env with the ``agent`` extra absent.
 
 * **LLM-synthesized** (``use_llm=True``) — gathers the *same* deterministic
-  evidence, builds the *same* grounded report, then asks ``claude-opus-4-8`` to
+  evidence, builds the *same* grounded report, then asks an Anthropic model
+  (``claude-haiku-4-5`` by default; override with ``RELIEF_PROBE_LLM_MODEL``) to
   rewrite only the prose summary using **only** the tool-fetched facts. Risk
   level, evidence rows, and the disclaimer stay deterministic, so the model can
   reword but never re-rank or invent. ``langchain_anthropic`` is imported
@@ -28,9 +29,7 @@ import duckdb
 
 from relief_probe.agent.report import InvestigatorReport, build_report
 from relief_probe.agent.tools import gather_evidence
-
-#: Model used for the optional LLM narrative synthesis.
-LLM_MODEL = "claude-opus-4-8"
+from relief_probe.config import llm_model
 
 
 def investigate(
@@ -61,15 +60,16 @@ def investigate(
     }
 
     if use_llm:
-        report = _synthesize_narrative(report, evidence)
+        model = llm_model()
+        report = _synthesize_narrative(report, evidence, model=model)
         telemetry["path"] = "llm"
-        telemetry["model"] = LLM_MODEL
+        telemetry["model"] = model
 
     return {"report": report, "telemetry": telemetry}
 
 
 def _synthesize_narrative(
-    report: InvestigatorReport, evidence: dict[str, Any]
+    report: InvestigatorReport, evidence: dict[str, Any], *, model: str
 ) -> InvestigatorReport:
     """Rewrite the report's summary with the LLM, grounded on evidence only.
 
@@ -103,7 +103,8 @@ def _synthesize_narrative(
         f"Deterministic risk level: {report.risk_level}\n"
         f"Gathered facts:\n{facts}\n"
     )
-    llm = ChatAnthropic(model=LLM_MODEL, temperature=0, max_tokens=400)
+    # Haiku 4.5 (default) supports temperature; the narrative is short, so cap tokens.
+    llm = ChatAnthropic(model=model, temperature=0, max_tokens=400)
     narrative = llm.invoke(prompt).content
     if isinstance(narrative, list):  # content blocks -> flatten to text
         narrative = "".join(

@@ -315,8 +315,9 @@ def investigate(
     llm: bool = typer.Option(
         False,
         "--llm/--no-llm",
-        help="Synthesize the narrative with claude-opus-4-8 (needs the `agent` "
-        "extra + ANTHROPIC_API_KEY). Default is the deterministic path.",
+        help="Synthesize the narrative with an LLM (claude-haiku-4-5 by default; "
+        "set RELIEF_PROBE_LLM_MODEL to override). Needs the `agent` extra + "
+        "ANTHROPIC_API_KEY. Default is the deterministic path.",
     ),
 ) -> None:
     """Investigate one loan: gather read-only evidence and print a grounded report.

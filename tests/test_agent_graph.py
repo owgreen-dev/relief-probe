@@ -99,6 +99,18 @@ def test_llm_path_imports_lazily():
     # If the extra IS present, the call must still raise without an API key,
     # never silently hit the network. We only assert it does not import-fail.
     import relief_probe.agent.graph as graph
+    from relief_probe.config import llm_model
 
     assert hasattr(graph, "investigate")
-    assert graph.LLM_MODEL == "claude-opus-4-8"
+    # LLM model is configurable; defaults to Haiku 4.5.
+    assert llm_model() == "claude-haiku-4-5"
+
+
+def test_llm_model_env_override(monkeypatch):
+    """RELIEF_PROBE_LLM_MODEL overrides the Haiku default."""
+    from relief_probe.config import llm_model
+
+    monkeypatch.setenv("RELIEF_PROBE_LLM_MODEL", "claude-opus-4-8")
+    assert llm_model() == "claude-opus-4-8"
+    monkeypatch.delenv("RELIEF_PROBE_LLM_MODEL")
+    assert llm_model() == "claude-haiku-4-5"
