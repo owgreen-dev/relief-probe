@@ -1,0 +1,77 @@
+{
+  "repo": "relief-probe",
+  "branchName": "ralph/agent-mcp",
+  "verifyCommand": "uv run pytest && uv run ruff check .",
+  "acceptanceCriteria": [
+    "Verification command passes (uv run pytest && uv run ruff check .)",
+    "All non-skipped features completed",
+    "All pre-existing tests (test_ingest, test_detectors, test_labels, test_resolve, test_benchmark, test_vision) still pass unchanged"
+  ],
+  "notes": "M5: agent + MCP layer for relief-probe — a tool-grounded loan investigator and an MCP server over the same read-only warehouse tools. ENTITY KEY is loan_number (string), NOT npi. Reuse existing modules: warehouse.connect, scoring.composite_ranking, benchmark.labeled_fraud_loans, detectors. DETERMINISTIC-FIRST: the investigate() default path and all tools must be pure-Python and fully testable WITHOUT the `agent` extra (langgraph/langchain-anthropic/mcp). Import any of langgraph/langchain_anthropic/mcp LAZILY inside functions so module import never fails in the core env; tests for LLM/MCP paths use pytest.importorskip. Verify with `uv run pytest && uv run ruff check .` (core env, no extra). Mirror the conventions in the existing codebase (typed, documented, ruff line-length 90). A high score/report is a lead for review, not evidence of fraud — every report carries that disclaimer. Read plans/guardrails.md every iteration. Commit one feature per iteration.",
+  "features": [
+    {
+      "id": "T-001",
+      "title": "agent/tools.py — read-only evidence-gathering tools over the warehouse",
+      "acceptanceCriteria": [
+        "New src/relief_probe/agent/__init__.py and src/relief_probe/agent/tools.py (pure Python, no agent-extra imports)",
+        "loan_profile(con, loan_number) -> dict of the loan's key fields (borrower_name, naics_code, borrower_state, current_approval_amount, jobs_reported, loan_status, forgiveness_amount, date_approved); returns {} if not found",
+        "loan_signals(con, loan_number) -> list of dicts {detector_id, score, evidence} from the signals table (evidence_json parsed)",
+        "peer_comparison(con, loan_number) -> dict with amount_per_job, cohort (naics x state), cohort_median_amount_per_job, x_cohort_median, cohort_size; {'available': False} when jobs missing or cohort too small",
+        "fraud_case_check(con, loan_number) -> dict {labeled: bool, cases: [...]} from fraud_cases (match_method, match_confidence, source_url)",
+        "composite_for(con, loan_number) -> dict {composite_score, n_signals, detectors} or {'flagged': False} if not in signals",
+        "gather_evidence(con, loan_number) -> dict bundling all of the above under stable keys",
+        "tests/test_agent_tools.py seeds a small warehouse (loans + signals + fraud_cases) and asserts each tool's shape + values, including the not-found / not-flagged / no-cohort branches",
+        "Verification passes (uv run pytest && uv run ruff check .)"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Foundation for everything else. Read-only; never writes. Reuse warehouse.connect. Parse evidence_json with json.loads. Cohort logic can mirror detectors/naics_cohort_outlier (NAICS x state, amount/jobs)."
+    },
+    {
+      "id": "T-002",
+      "title": "agent/report.py — InvestigatorReport model + deterministic build_report",
+      "acceptanceCriteria": [
+        "src/relief_probe/agent/report.py with a frozen dataclass InvestigatorReport(loan_number, risk_level, summary, evidence: list[EvidenceItem], alternative_explanations: list[str], recommended_next_steps: list[str], disclaimer: str)",
+        "EvidenceItem(claim, source, detail) — source names the tool/query that produced it (grounding)",
+        "DISCLAIMER constant: a high score is a statistical lead for review, not evidence of fraud (see RESPONSIBLE_USE.md)",
+        "build_report(evidence: dict) -> InvestigatorReport: deterministic, derives risk_level from composite score / n_signals / labeled (e.g. low/elevated/high/critical), writes a factual summary, an evidence row per fired detector + peer comparison + fraud-case match, sensible alternative_explanations (legit high-wage business, EIDL-refinance, data artifacts) and recommended_next_steps",
+        "Every evidence row cites a source; build_report uses ONLY the passed evidence (no fabrication)",
+        "tests/test_agent_report.py: a flagged+labeled loan -> high/critical with cited evidence; an unflagged loan -> low risk; disclaimer always present",
+        "Verification passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Pure Python. Consumes the dict from tools.gather_evidence. Keep risk thresholds simple and documented."
+    },
+    {
+      "id": "T-003",
+      "title": "agent/graph.py investigate() + `relief-probe investigate` CLI (deterministic default)",
+      "acceptanceCriteria": [
+        "src/relief_probe/agent/graph.py with investigate(con, loan_number, *, use_llm=False) -> dict {report: InvestigatorReport, telemetry: {...}}",
+        "Default (use_llm=False) path is pure Python: gather_evidence -> build_report; no langgraph/langchain imports at module load",
+        "use_llm=True path imports langchain_anthropic/langgraph LAZILY and synthesizes the narrative with claude-opus-4-8 using ONLY tool-fetched facts; raises a clear error if the agent extra or ANTHROPIC_API_KEY is missing",
+        "CLI command `relief-probe investigate <loan_number> [--llm/--no-llm]` prints the report (rich) with the disclaimer",
+        "tests/test_agent_graph.py: deterministic investigate on a seeded loan returns a populated report + telemetry; LLM path test uses pytest.importorskip('langchain_anthropic') so core-env runs skip it cleanly",
+        "Verification passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Deterministic path is the gate. Telemetry can be simple (tool_calls count, path='deterministic'/'llm'). Mirror probity's investigate ergonomics."
+    },
+    {
+      "id": "T-004",
+      "title": "agent/mcp_server.py — expose the tools over MCP + `relief-probe serve-mcp`",
+      "acceptanceCriteria": [
+        "src/relief_probe/agent/mcp_server.py exposing four read-only tools: score_loan, peer_compare, check_fraud_case, investigate (deterministic), each wrapping the agent.tools / graph functions over a warehouse connection",
+        "mcp imported LAZILY (module import must not require the agent extra)",
+        "CLI command `relief-probe serve-mcp` starts the server (guarded: clear message if `mcp` not installed)",
+        "tests/test_mcp_server.py uses pytest.importorskip('mcp') and asserts the tool registry exposes the four tools with the documented names/signatures (no network/stdio needed)",
+        "README/NEXT_STEPS updated: Layer 6 (agent + MCP) marked done; CLI table updated",
+        "Verification passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Keep the tool surface thin — delegate to agent.tools/graph. The importorskip test keeps the loop green in the core env."
+    }
+  ]
+}

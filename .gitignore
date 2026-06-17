@@ -3,6 +3,13 @@ data/
 *.duckdb
 *.duckdb.wal
 
+# Ralph loop runtime artifacts (run logs + live status)
+scripts/ralph/runs/
+scripts/ralph/loop.out
+.claude/ralph-status.local.json
+.claude/ralph-state.local.md
+.claude/*.local.*
+
 # Python
 __pycache__/
 *.py[cod]
