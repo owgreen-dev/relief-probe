@@ -51,7 +51,7 @@ All six layers built, tested, and verified on real data. See [NEXT_STEPS.md](NEX
 ## Quickstart
 
 ```bash
-uv run --with pytest pytest                         # offline tests (23)
+uv run --with pytest pytest                         # offline tests (45)
 uv run relief-probe ingest --slice 150k_plus        # ~1M big-dollar loans (~430 MB)
 uv run relief-probe score                           # run detectors → ranked leads
 uv run relief-probe fetch-labels                    # scrape DOJ enforcement releases
