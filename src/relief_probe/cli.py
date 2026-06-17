@@ -36,6 +36,69 @@ def info() -> None:
         console.print(t)
 
 
+@app.command()
+def benchmark() -> None:
+    """Forward PU validation: how strongly prosecuted loans rank at the top.
+
+    Runs all detectors, ranks loans by composite score, and reports precision@k /
+    lift / recall@k against the resolved `fraud_cases` labels, with a per-detector
+    ablation. Needs `ingest`, `fetch-labels`, and `resolve-labels` first.
+    """
+    from relief_probe.benchmark import run_benchmark
+
+    with connect() as con:
+        n_labels = con.execute("SELECT COUNT(*) FROM fraud_cases").fetchone()[0]
+        if n_labels == 0:
+            console.print(
+                "[yellow]No labels.[/] Run `fetch-labels` then `resolve-labels` first."
+            )
+            raise typer.Exit(code=1)
+        console.print("Scoring + benchmarking …")
+        res = run_benchmark(con)
+
+    console.print(
+        f"Population [bold]{res['population']:,}[/] loans · "
+        f"[bold]{res['n_labeled_fraud']}[/] prosecuted (base rate "
+        f"{res['base_rate']:.4%}) · {res['n_ranked']:,} flagged & ranked."
+    )
+
+    ks = res["ks"]
+    t = Table(title="Forward lift@k — composite ranking vs DOJ-prosecuted loans")
+    t.add_column("k")
+    t.add_column("hits", justify="right")
+    t.add_column("precision@k", justify="right")
+    t.add_column("lift", justify="right")
+    t.add_column("recall", justify="right")
+    for k in ks:
+        m = res["overall"][k]
+        lift = m["lift"]
+        t.add_row(
+            f"{k:,}", str(m["hits"]), f"{m['precision']:.3%}",
+            "—" if lift is None else f"{lift:.1f}x",
+            "—" if m["recall"] is None else f"{m['recall']:.1%}",
+        )
+    console.print(t)
+
+    a = Table(title="Per-detector ablation (lift@k in isolation)")
+    a.add_column("detector")
+    a.add_column("flagged", justify="right")
+    for k in ks:
+        a.add_column(f"lift@{k}", justify="right")
+    for det, info in res["ablation"].items():
+        row = [det, f"{info['n_flagged']:,}"]
+        for k in ks:
+            lift = info["metrics"][k]["lift"]
+            row.append("—" if lift is None else f"{lift:.1f}x")
+        a.add_row(*row)
+    console.print(a)
+
+    console.print(
+        "[dim]Recall-on-known-fraud, not a fraud rate: labels are a small, "
+        "prosecution-biased PU sample resolved to the $150k+ slice. "
+        "See RESPONSIBLE_USE.md.[/]"
+    )
+
+
 @app.command(name="fetch-labels")
 def fetch_labels(
     min_year: int = typer.Option(

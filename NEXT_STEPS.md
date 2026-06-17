@@ -57,12 +57,17 @@ Context: there is NO public per-loan label list (the 2026 "562K referred loans" 
 flagged-not-charged and not downloadable), so this self-built, prosecution-biased PU
 label set is the only path — hence recall-on-known-fraud framing in M4.
 
-## M4 — PU forward benchmark (`benchmark/`)
+## M4 — PU forward benchmark ✅ (done)
 
-Rank loans by composite score; measure how `fraud_cases`-matched loans concentrate
-at the top (lift@k, recall@k). Report **recall-on-known-fraud**, with the
-caught-≠-all caveat up front. Optional learned scorer (PU-learning) vs the
-transparent baseline on the same split (`ml` extra).
+`benchmark/core.py` + `relief-probe benchmark`: rank loans by composite score, report
+precision@k / lift / recall@k vs resolved `fraud_cases`, with per-detector ablation.
+**Real result** (965,122 loans, 325 prosecuted labels, base 0.034%): **lift@100 29.7×,
+@500 23.8×, @1000 14.8×** — comparable to probity's Medicare ~32×@500, with only 2
+detectors. Recall low (3.4% @5000) — PU + only 2 detectors + labels on the 150k+ slice.
+Ablation: payroll_cap drives the very top; naics_cohort peaks ~35×@250.
+
+Still planned (M4.1): optional learned PU scorer vs the transparent baseline on the
+same split (`ml` extra); ingest the `under_150k`/`all` slices to broaden recall.
 
 ## M5 — agent + MCP (`agent/`)
 
