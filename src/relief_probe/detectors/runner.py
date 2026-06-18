@@ -8,15 +8,23 @@ from relief_probe.detectors.base import Detector
 from relief_probe.detectors.registry import all_detectors
 
 
-def run_all(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
-    """Run every registered detector, replace ``signals``, return per-detector counts.
+def run_all(
+    con: duckdb.DuckDBPyConnection,
+    detectors: list[Detector] | None = None,
+) -> dict[str, int]:
+    """Run detectors, replace ``signals``, return per-detector counts.
+
+    Defaults to the production set (``all_detectors()``). Pass an explicit
+    ``detectors`` list to include exploratory ones (e.g. the duplicate-address ring
+    detector) for ad-hoc scoring without putting them in the headline composite.
 
     Detectors are pure (they only read), so we collect all signals first and write
     once — the ``signals`` table always reflects exactly the last scoring run.
     """
+    dets = detectors if detectors is not None else all_detectors()
     counts: dict[str, int] = {}
     collected: list = []
-    for det in all_detectors():
+    for det in dets:
         sigs = det.run(con)
         counts[det.detector_id] = len(sigs)
         collected.extend(sigs)

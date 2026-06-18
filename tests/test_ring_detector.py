@@ -10,7 +10,11 @@ from relief_probe.benchmark import detector_flagged_loans, detector_overlap
 from relief_probe.detectors.duplicate_address_ring import DuplicateAddressRingDetector
 from relief_probe.detectors.naics_cohort_outlier import NaicsCohortOutlierDetector
 from relief_probe.detectors.payroll_cap import PayrollCapExceedanceDetector
-from relief_probe.detectors.registry import all_detectors
+from relief_probe.detectors.registry import (
+    all_detectors,
+    exploratory_detectors,
+    get_detector,
+)
 from relief_probe.detectors.runner import run_all
 from relief_probe.scoring import composite_ranking
 from relief_probe.warehouse import connect
@@ -143,25 +147,32 @@ def _seed_ring_plus_dollar_outlier(con):
     con.executemany(_INSERT_FULL, rows)
 
 
-def test_detector_is_registered():
-    ids = {d.detector_id for d in all_detectors()}
-    assert "duplicate_address_ring" in ids
+def test_ring_detector_is_exploratory_not_in_default_composite():
+    # Kept + discoverable, but OUT of the production set (no validated lift, H6).
+    assert "duplicate_address_ring" not in {d.detector_id for d in all_detectors()}
+    assert "duplicate_address_ring" in {d.detector_id for d in exploratory_detectors()}
+    # Still resolvable by id for ad-hoc investigation.
+    assert get_detector("duplicate_address_ring").detector_id == "duplicate_address_ring"
 
 
-def test_run_all_includes_ring_detector_count(tmp_path):
+def test_default_run_all_excludes_ring_but_explicit_list_includes_it(tmp_path):
     con = connect(tmp_path / "wh.duckdb")
     _seed_ring_plus_dollar_outlier(con)
-    counts = run_all(con)
-    # The runner iterates all_detectors() generically — no special-casing.
+    # Default run = production detectors only: no ring signals.
+    default_counts = run_all(con)
+    assert "duplicate_address_ring" not in default_counts
+    assert default_counts["naics_cohort_outlier"] >= 1
+    assert default_counts["payroll_cap_exceedance"] >= 1
+    # Opt-in run with the exploratory detector included does run it.
+    counts = run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
     assert counts["duplicate_address_ring"] == 3
-    assert counts["naics_cohort_outlier"] >= 1
-    assert counts["payroll_cap_exceedance"] >= 1
 
 
 def test_composite_corroborates_ring_and_dollar_signals(tmp_path):
     con = connect(tmp_path / "wh.duckdb")
     _seed_ring_plus_dollar_outlier(con)
-    run_all(con)
+    # Explicitly include the exploratory ring detector to test 3-way corroboration.
+    run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
 
     ranking = composite_ranking(con)
     by_loan = {row["loan_number"]: row for _, row in ranking.iterrows()}
