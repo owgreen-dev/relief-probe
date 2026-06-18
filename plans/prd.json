@@ -35,7 +35,8 @@
         "Verification passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Mirror the H6/Loop1/Loop2 disposition (SIGN-010). exploratory_detectors() now holds duplicate_address_ring, amount_anomaly, establishment_overcount, lender_concentration."
     },
     {

@@ -64,3 +64,13 @@ promotion is manual after real-data validation. Never touch the real data/ wareh
 - Label-free proof: tests leave `fraud_cases` EMPTY (connect() creates it) and assert
   the detector still fires (SIGN-012). Detector never queries any label table.
 - ruff: `zip(...)` needs `strict=True` (B905). Full verify: 115 passed, ruff clean.
+- L3-002 DONE: registered `LenderConcentrationDetector()` in
+  `registry.exploratory_detectors()` only (all_detectors() UNCHANGED — SIGN-010);
+  updated the registry module docstring (lists it as built+tested, pending real-data
+  validation) and removed it from the "Planned" line. Added 4 tests to
+  tests/test_registry.py: in exploratory_detectors() & not all_detectors();
+  get_detector resolves it; default run_all omits it; explicit
+  run_all(detectors=[*all_detectors(), *exploratory_detectors()]) counts it.
+- Registry test seed gotcha: the DEFAULT detector uses min_loans=100, so the
+  integration seed gives every lender 100 loans (BADBANK 90% bust, clean peers at
+  varied 0/5/10% so cross-lender MAD>0). Full verify: 119 passed, ruff clean.

@@ -26,10 +26,15 @@ promotes any that show it:
   composite (the few prosecuted loans it catches are already caught at those ranks;
   +1 hit @2000, otherwise identical), so it stays exploratory. Needs a 5-digit ZIP
   truncation to join real ZIP+4 loans (fixed in the detector).
+* ``lender_concentration`` — an UNSUPERVISED, label-free LENDER signal (Loop 3): per
+  originating lender, the RATE of program-rule-implausible ($/job over the per-employee
+  payroll cap) loans, robust-z scored across lenders; flags every loan from a lender in
+  the extreme upper tail. Built + tested; pending real-data lift validation before any
+  promotion (the GAO "a few fintech auto-approval lenders" motivation).
 
 Kept for investigation/evidence and opt-in scoring; not in the headline ranking.
 
-Planned: proceeds_anomaly, lender_concentration.
+Planned: proceeds_anomaly.
 """
 
 from __future__ import annotations
@@ -38,6 +43,7 @@ from relief_probe.detectors.amount_anomaly import AmountAnomalyDetector
 from relief_probe.detectors.base import Detector
 from relief_probe.detectors.duplicate_address_ring import DuplicateAddressRingDetector
 from relief_probe.detectors.establishment_overcount import EstablishmentOvercountDetector
+from relief_probe.detectors.lender_concentration import LenderConcentrationDetector
 from relief_probe.detectors.multiple_funded_loans import MultipleFundedLoansDetector
 from relief_probe.detectors.naics_cohort_outlier import NaicsCohortOutlierDetector
 from relief_probe.detectors.payroll_cap import PayrollCapExceedanceDetector
@@ -65,6 +71,7 @@ def exploratory_detectors() -> list[Detector]:
         DuplicateAddressRingDetector(),
         AmountAnomalyDetector(),
         EstablishmentOvercountDetector(),
+        LenderConcentrationDetector(),
     ]
 
 

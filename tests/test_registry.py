@@ -21,6 +21,7 @@ from relief_probe.warehouse import connect
 PROMOTED_ID = "multiple_funded_loans"
 EXPLORATORY_ID = "amount_anomaly"
 OVERCOUNT_ID = "establishment_overcount"
+LENDER_ID = "lender_concentration"
 
 
 def _seed(con):
@@ -124,4 +125,72 @@ def _seed_overcount(con):
     con.executemany(
         "INSERT INTO establishments (zip, naics, establishments) VALUES (?, ?, ?)",
         [("29150", "325510", 1)],
+    )
+
+
+# --- L3-002: lender_concentration stays EXPLORATORY (SIGN-010) -------------------
+
+
+def test_lender_concentration_is_exploratory_not_promoted():
+    prod_ids = {d.detector_id for d in all_detectors()}
+    expl_ids = {d.detector_id for d in exploratory_detectors()}
+    # Built + tested but unvalidated on real data -> exploratory only, NOT composite.
+    assert LENDER_ID in expl_ids
+    assert LENDER_ID not in prod_ids
+    # all_detectors() is UNCHANGED — exactly the two $/job detectors + the promoted one.
+    assert prod_ids == {
+        "naics_cohort_outlier",
+        "payroll_cap_exceedance",
+        "multiple_funded_loans",
+    }
+
+
+def test_get_detector_resolves_lender_concentration():
+    assert get_detector(LENDER_ID).detector_id == LENDER_ID
+
+
+def test_default_run_all_omits_lender_concentration(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed_lender_concentration(con)
+    counts = run_all(con)
+    assert LENDER_ID not in counts  # exploratory -> opt-in only
+
+
+def test_explicit_run_all_includes_lender_concentration(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed_lender_concentration(con)
+    counts = run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
+    # BADBANK's whole 100-loan book fires under the default min_loans=100.
+    assert counts[LENDER_ID] >= 100
+
+
+def _seed_lender_concentration(con):
+    """Seed a structurally-bad lender amid clean peers, each with >= 100 loans.
+
+    The default detector requires min_loans=100, so every book here has 100 loans;
+    the clean peers carry small, *varied* cap-busting rates so the cross-lender MAD
+    is non-degenerate and BADBANK lands far in the upper tail.
+    """
+    bust, clean = (30000.0, 1.0), (5000.0, 1.0)  # $/job over vs. under the $20,833 cap
+
+    def book(lender, n_bust):
+        return [
+            (
+                f"{lender}-{i}",
+                lender,
+                "541110",
+                bust[0] if i < n_bust else clean[0],
+                bust[1] if i < n_bust else clean[1],
+            )
+            for i in range(100)
+        ]
+
+    rows = book("BADBANK", 90)
+    for lender, n_bust in (("CLEAN1", 0), ("CLEAN2", 5), ("CLEAN3", 10),
+                           ("CLEAN4", 0), ("CLEAN5", 5)):
+        rows += book(lender, n_bust)
+    con.executemany(
+        "INSERT INTO loans (loan_number, originating_lender, naics_code, "
+        "current_approval_amount, jobs_reported) VALUES (?, ?, ?, ?, ?)",
+        rows,
     )
