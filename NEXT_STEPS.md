@@ -313,13 +313,19 @@ Built the three the user picked (1, 3, 4 — skipped the agentic-KYB agent):
   / person-name sole-prop) → accept on match AND confidence. ADDITIVE + marked
   `amount+llm` (never overwrites exact labels; reversible; a purist benchmark can exclude
   them). Deterministic-first/key-gated + concurrent/robust (mirrors the triage `LlmJudge`).
-- **Real-data verdict (validated):** from **400** amount-blocked candidates (cap), Haiku
-  recovered **7 new labels in ~2.8 min** (325 → **332** distinct, +2.2%) — exactly the
-  fuzzy categories the exact resolver can't reach: *Exotica Beauty Bar → "Exotica Beauty
-  LLC"* (DBA), *AWE Watersports LLC → "Thomas Aaron Signorelli"* (person sole-prop), VSoft
-  / Alpha Health punctuation+whitespace variants. Every match amount-gated, conf ≥ 0.85.
-  A real recall win on the binding constraint from a capped slice; a full sweep would find
-  more. (To revert: `DELETE FROM fraud_cases WHERE match_method='amount+llm'`.)
+- **Real-data verdict (validated, FULL sweep):** the full pass adjudicated **8,274**
+  amount-blocked candidates in ~50 min and recovered **+72 new labels** (a first capped
+  400-candidate run had found 7) — **325 → 404 distinct labeled loans (+24%)**, 79 total
+  marked `amount+llm`. Exactly the fuzzy categories the exact resolver can't reach: legal-
+  suffix/spelling variants (*5TH Marketing Group ↔ "Fifth Marketing Group"*, *SLIFCO
+  ELECTRIC, L.L.C. ↔ "Slifco Electric, LLC"*) and person-name sole-props (*CCF Acoustical
+  Systems → "Craig C. Franck"*, *Unimentors LLC → "Mark Ethan Jermain a/k/a …"*). Every
+  match amount-gated; most at conf 0.99. A real recall win on the binding constraint —
+  +24% labels. (To revert: `DELETE FROM fraud_cases WHERE match_method='amount+llm'`.)
+- **Honest caveat / next rigor step:** these `amount+llm` labels are NOT yet hand-validated
+  for precision like the exact tier (H4: ~84–88%). An H4-style stratified precision check on
+  the `amount+llm` tier is required before fully trusting them in the benchmark; the
+  amount-gate + conf-0.99 makes them likely clean but unmeasured.
 
 +23 tests across the three phases (suite now 155); ruff clean.
 
