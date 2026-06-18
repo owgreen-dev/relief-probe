@@ -178,13 +178,74 @@ The same four read-only tools (`score_loan`, `peer_compare`, `check_fraud_case`,
 `investigate`) are exposed over MCP (`agent/mcp_server.py`, `relief-probe
 serve-mcp`); `mcp`/LLM deps are imported lazily so the core env stays green.
 
-## M7 — cost-aware LLM triage cascade (PLANNED — see docs/M7_PLAN.md)
+## M7 — cost-aware LLM triage cascade (Tier 1 ✅ built — see docs/M7_PLAN.md)
 
 **Full grounded plan + cost estimate in [docs/M7_PLAN.md](docs/M7_PLAN.md).** Decided:
 build **H4 first** (the hand-labeled sample is the Tier-1 judge's calibration set), then
 **M7 Tier 1 only** (Haiku 4.5 plausibility scorer + `triage` CLI + validation gate).
 Established LLM-cascade pattern (FrugalGPT); Batch API (50% off) + prompt caching +
 structured outputs; ~$2–4 per run vs ~$8–16k to run the LLM over all 11.3M loans.
+
+### Tier 1 — semantic plausibility scorer ✅ (built; deterministic-first + key-gated)
+
+New `triage/` package + `relief-probe triage --top-k N [--llm] [--gate]`. The cascade:
+Tier 0 (the composite) ranks all loans for free → escalate only the **top-k** leads to a
+plausibility judge ("could this business plausibly justify this loan?" over
+`borrower_name × NAICS × amount × jobs × payroll_proceed`) → blend the judge's 0–3
+implausibility into a transparent re-rank (`composite + 0.5·(implausibility/3)`).
+- **Two judges behind one `Judge` shape** (`triage/judge.py`): `heuristic_judge`
+  (deterministic, offline, no extra — structured-field tells: $/job vs the per-employee
+  cap, single-job mega-loans, round-number amounts; it is the **baseline**, a near-
+  restatement of $/job) and `LlmJudge` (Haiku 4.5, structured output via a strict 0–3
+  JSON schema + rubric + few-shot, CoT-before-score). `langchain_anthropic` imported
+  lazily; missing extra/`ANTHROPIC_API_KEY` → clear error. So the whole pipeline
+  (select → judge → re-rank → gate) builds + tests with **no key**.
+- **Hard cap (`MAX_TRIAGE = 2000`, `triage/core.py`)** bounds how many loans ever reach
+  the LLM regardless of `--top-k`; the cap-hit + judged count are logged every run — cost
+  is bounded and visible. NEVER runs the LLM over the full population (Tier 0 does the cut).
+- **Robust + concurrent LLM path** (hardened during the first real run): `LlmJudge` judges
+  over a bounded `ThreadPoolExecutor` (`--concurrency`, default 8 — 300 loans in ~3.5 min
+  vs ~15+ min sequential), coerces malformed structured output (Haiku occasionally leaks
+  tool-call markup into the integer field), and retries-then-falls-back per loan so one bad
+  cell never aborts a batch (`n_errors` telemetry). The gate **reuses the judged head**
+  (`reranked_head`) so it never re-judges / double-spends.
+- **Validation gate (`triage/gate.py`, `--gate`)** — same discipline as every detector:
+  compares composite-only vs triage-reranked lift@k on the resolved labels / $150k+ slice
+  (only k ≤ top_k, since re-ranking the head can't move lift beyond it) and prints
+  `improved`/`neutral`/`regressed`. 18 tests; full suite green, ruff clean.
+
+### Tier-1 real-data verdict (June 2026): honest NEGATIVE — built, opt-in, NOT promoted
+
+Ran `triage --top-k 300 --llm --gate` (Haiku 4.5) on the real 11.3M warehouse / 325 labels
+(`data/triage_runs/`). **Result: no lift — gate `regressed` by exactly one loan.**
+
+| k | composite lift | triage (Haiku) lift | hits |
+| --- | --- | --- | --- |
+| 25 | 356.4× | 237.6× | **3 → 2** |
+| 50 | 178.2× | 118.8× | **3 → 2** |
+| 100 | 89.1× | 89.1× | 3 → 3 |
+| 250 | 35.6× | 35.6× | 3 → 3 |
+
+The whole "regression" is **one prosecuted loan** dropping out of the top-25/50 (3→2 hits),
+zero change at k≥100 — a single-loan swing, i.e. within the H3 bootstrap noise (top-k rests
+on 1–3 loans). Honest read: **the semantic-plausibility re-rank does not concentrate the
+prosecuted labels better than the composite, and perturbs the very top within noise.** Why:
+the composite already nails the top (3/25 prosecuted), the LLM marks *many* loans
+`egregious` so the uniform `+0.5·(implausibility/3)` bonus can't discriminate, and some
+prosecuted loans look *plausible* to the LLM (coherent name/industry/scale) so they slip.
+The judge's calls themselves look sensible (egregious on $X-million single-job loans, an
+"L SQUARE HAIR CO" personal-care shop at $377k/1-job) — the signal just isn't aligned with
+*what got prosecuted*. Two caveats both ways: PU labels can't reward fraud the DOJ never
+charged (the LLM may flag *different* real fraud), and the blend is coarse. **Disposition:
+kept built + opt-in (`triage` CLI), NOT promoted into any default ranking** — mirrors
+`duplicate_address_ring` / `establishment_overcount` / `lender_concentration`.
+
+- **Next up:** the productive follow-ups now that the re-ranker is a measured negative —
+  (a) **Tier 2** (DOJ press-release corroboration, which *also* improves label quality, H4)
+  rather than blind plausibility; (b) reframe Tier 1 as an **explanation/triage-narrowing**
+  aid (cheap human-readable "why this looks off" on the top leads) instead of a re-ranker,
+  where being label-aligned isn't required; (c) **H7 temporal holdout** before any
+  label-aware tuning. No promotion of Tier 1 until something earns lift.
 
 Cheap deterministic triage narrows millions of loans to hundreds, then the LLM runs
 **only on that subset** — the right way to use an expensive model at scale.
@@ -217,6 +278,55 @@ logged, so cost is bounded and visible. New CLI `relief-probe triage --top-k N [
 docs are NOT public, so this cascade runs on structured fields + press-release TEXT, not
 documents. (Forms — synthetic or in a real-work context — would slot into the vision tab
 + an LLM-OCR step later.)
+
+## M8 — AI research follow-ups (built after the Tier-1 null; see docs/LLM_RESEARCH.md)
+
+Five parallel research agents diagnosed *why* the Tier-1 LLM-judge null was
+over-determined (re-judged fields the composite already had; pointwise scoring
+saturates; additive blend of uncalibrated scores; lift@k is unreliable on PU labels)
+and where AI genuinely adds signal (text semantics; external evidence; more labels).
+Built the three the user picked (1, 3, 4 — skipped the agentic-KYB agent):
+
+### Phase 1 — PU-honest metrics + RRF primitive ✅
+- `benchmark/core.py::positive_rank_stats` + CLI: replaces the misleading lift@k headline
+  with a **two-part PU-honest summary** — *concentration* (mean percentile of flagged
+  positives within the flagged list; ~0.5 = random) and *coverage* (fraction flagged at
+  all). **Real data:** the 28 flagged positives concentrate at mean percentile **0.309**
+  (better than random), but **only 28/325 (9%) are flagged at all** — the recall ceiling
+  lift@k hid. (arXiv 2509.24228: on PU labels recall/rank are estimable, lift is not.)
+- `reciprocal_rank_fusion` (Cormack 2009): the correct rank-fusion primitive (vs the
+  additive blend that sank Tier 1), ready for any future reranker.
+
+### Phase 2 — name↔NAICS embedding-mismatch detector ✅ (the honest redo of Tier 1)
+- `detectors/naics_mismatch.py` + `embeddings.py`: embeds each borrower name and every
+  candidate NAICS industry title, scores the declared industry's **normalized mismatch
+  gap** (continuous, tie-robust — not a saturated 0-3). Targets the *text* the composite
+  never reads. Registered EXPLORATORY (SIGN-010). Default offline `HashingEmbedder` is a
+  lexical proxy (proves the machinery); the real semantic signal needs the `embeddings`
+  extra (a local sentence-transformer) — **real-data validation pending that model**.
+  Bundled canonical 2-digit NAICS sector titles; finer titles via `ingest-naics PATH`.
+
+### Phase 3 — LLM-adjudicated entity resolution ✅ (grows the labels; validated on real data)
+- `labels/llm_resolve.py` + `relief-probe resolve-labels-llm`: **block by amount** (the
+  external corroboration gate — find loans whose exact amount appears in a release the
+  precise resolver missed) → **LLM adjudicates only the NAME** (DBA / a.k.a. / misspelling
+  / person-name sole-prop) → accept on match AND confidence. ADDITIVE + marked
+  `amount+llm` (never overwrites exact labels; reversible; a purist benchmark can exclude
+  them). Deterministic-first/key-gated + concurrent/robust (mirrors the triage `LlmJudge`).
+- **Real-data verdict (validated):** from **400** amount-blocked candidates (cap), Haiku
+  recovered **7 new labels in ~2.8 min** (325 → **332** distinct, +2.2%) — exactly the
+  fuzzy categories the exact resolver can't reach: *Exotica Beauty Bar → "Exotica Beauty
+  LLC"* (DBA), *AWE Watersports LLC → "Thomas Aaron Signorelli"* (person sole-prop), VSoft
+  / Alpha Health punctuation+whitespace variants. Every match amount-gated, conf ≥ 0.85.
+  A real recall win on the binding constraint from a capped slice; a full sweep would find
+  more. (To revert: `DELETE FROM fraud_cases WHERE match_method='amount+llm'`.)
+
++23 tests across the three phases (suite now 155); ruff clean.
+
+**Next AI follow-ups (deferred, not built):** the agentic-KYB evidence agent (option 🅑 —
+SoS registration-date / address-type / footprint, the Griffin et al. indicators); run the
+embedding detector with the real semantic model + validate lift; sweep `resolve-labels-llm`
+past the 400-cap for more recall; PU-bagging learned scorer consuming these features.
 
 ## Hardening / rigor backlog (post-M6, from the objective self-review)
 
@@ -298,10 +408,15 @@ Also still open: M4.1 learned PU scorer (`ml` extra); real vision data + CNN vs 
   detector, then validated it on real data: it's orthogonal (Jaccard ≈ 0.02) but has
   **no lift** against the prosecuted labels at any threshold, so it was **dropped from
   the default composite** (kept as an exploratory detector). Honest negative result.
-- **Next up:** H4 done (label precision ~84–88%). Next build is **M7 Tier 1** (Haiku
-  plausibility scorer + `triage` CLI + lift gate — see docs/M7_PLAN.md), using the
-  exact-tier labels as the judge calibration set. Then H7 temporal holdout before any
-  label-aware tuning.
+- **Done this session:** **M7 Tier 1** built AND validated on real data — `triage/` package
+  (heuristic + concurrent/robust Haiku `Judge`s, hard cap, transparent re-rank) +
+  `relief-probe triage --top-k N [--llm] [--gate] [--concurrency C]` + validation gate, all
+  deterministic-first/key-gated (18 tests; suite green). Real `--llm --gate` run on the
+  11.3M warehouse / 325 labels: **honest NEGATIVE** (no lift; gate regressed by one loan) —
+  kept built + opt-in, NOT promoted. See the Tier-1 real-data verdict above.
+- **Next up:** Tier 2 (press-release corroboration) or reframe Tier 1 as an explanation aid;
+  then H7 temporal holdout before any label-aware tuning. No promotion until something
+  earns measurable lift.
 
 ## Watch-outs
 

@@ -179,6 +179,32 @@ def benchmark(
             "lower bound near 0 means the point lift rests on one or two loans.[/]"
         )
 
+    # PU-honest summary: rank of the known positives. On a prosecution-biased PU
+    # sample, lift@k is not reliably estimable but the rank of known positives is —
+    # so this is the number to trust over the lift table above.
+    pr = res.get("positive_ranks") or {}
+    if pr.get("n_positives"):
+        conc = pr["mean_percentile_in_ranking"]
+        coverage = pr["n_ranked"] / pr["n_positives"] if pr["n_positives"] else 0.0
+        console.print(
+            "[bold]PU-honest rank of known fraud[/] (trust over lift, two parts):"
+        )
+        if conc is not None:
+            console.print(
+                f"  • [bold]Concentration[/]: the {pr['n_ranked']} flagged positives "
+                f"sit at median rank [bold]{pr['median_rank_ranked']:,.0f}[/] of "
+                f"{pr['n_in_ranking']:,} flagged — mean percentile "
+                f"[bold]{conc:.3f}[/] "
+                f"({'better than random' if conc < 0.5 else 'no better than random'}; "
+                "~0.5 = random, lower = top-concentrated)."
+            )
+        console.print(
+            f"  • [bold]Coverage[/]: only [bold]{pr['n_ranked']}/{pr['n_positives']}"
+            f"[/] positives ({coverage:.0%}) are flagged at all — "
+            f"{pr['n_unranked']} never fire any detector (the recall ceiling that "
+            "lift@k hides)."
+        )
+
     a = Table(title="Per-detector ablation (lift@k in isolation)")
     a.add_column("detector")
     a.add_column("flagged", justify="right")
@@ -295,6 +321,78 @@ def resolve_labels(
         f"[green]Labeled {summary['loans_labeled']:,} loans[/] from "
         f"{summary['releases_matched']:,}/{summary['releases_scanned']:,} "
         f"loan-fraud releases that resolved to a loan."
+    )
+
+
+@app.command(name="resolve-labels-llm")
+def resolve_labels_llm(
+    threshold: float = typer.Option(
+        0.7, help="Minimum LLM confidence [0-1] to accept a new label."
+    ),
+    max_releases: int = typer.Option(
+        0, help="Cap releases scanned (0 = all)."
+    ),
+    max_adjudications: int = typer.Option(
+        2000, help="Hard cap on candidate loans sent to the LLM (the cost ceiling)."
+    ),
+    concurrency: int = typer.Option(8, "--concurrency", help="Max concurrent LLM calls."),
+) -> None:
+    """Add LLM-adjudicated fraud labels (DBA / misspelled / sole-prop names).
+
+    Blocks candidate loans by amount (the external corroboration gate), then has an
+    LLM adjudicate whether each release truly charges that borrower — recovering
+    matches the exact resolver misses. ADDITIVE: never overwrites exact labels;
+    new labels are marked `amount+llm`. Needs the `agent` extra + ANTHROPIC_API_KEY.
+    Run `resolve-labels` (the precise pass) first.
+    """
+    from relief_probe.config import llm_model
+
+    with connect() as con:
+        n_press = con.execute("SELECT COUNT(*) FROM press_releases").fetchone()[0]
+        if n_press == 0:
+            console.print(
+                "[yellow]No staged releases.[/] Run `fetch-labels` first."
+            )
+            raise typer.Exit(code=1)
+        before = con.execute(
+            "SELECT COUNT(DISTINCT loan_number) FROM fraud_cases"
+        ).fetchone()[0]
+
+        from relief_probe.labels.llm_resolve import LlmAdjudicator, resolve_with_llm
+
+        model = llm_model()
+        adjudicator = LlmAdjudicator(model=model, max_concurrency=concurrency)
+        console.print(
+            f"LLM entity resolution ({model}) — amount-blocking then adjudicating "
+            f"(cap {max_adjudications:,}) …"
+        )
+        try:
+            summary = resolve_with_llm(
+                con,
+                adjudicator,
+                threshold=threshold,
+                max_releases=max_releases or None,
+                max_adjudications=max_adjudications,
+                progress=lambda m: console.print(f"  {m}"),
+            )
+        except RuntimeError as exc:  # missing extra / API key
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=1) from None
+
+    if summary["cap_hit"]:
+        console.print(
+            f"[yellow]Capped[/] at {summary['max_adjudications']:,} adjudications."
+        )
+    if summary["n_errors"]:
+        console.print(
+            f"[yellow]{summary['n_errors']} adjudication(s)[/] failed and fell back "
+            "to no-match (precision-safe)."
+        )
+    console.print(
+        f"[green]Added {summary['new_loans_labeled']:,} new labels[/] from "
+        f"{summary['candidates_adjudicated']:,} amount-blocked candidates "
+        f"({before:,} → {before + summary['new_loans_labeled']:,} distinct labeled "
+        "loans). New labels are marked `amount+llm`."
     )
 
 
@@ -420,6 +518,159 @@ def investigate(
     console.print(f"[dim]{report.disclaimer}[/]")
 
 
+@app.command()
+def triage(
+    top_k: int = typer.Option(
+        100,
+        "--top-k",
+        help="How many top composite leads to escalate to the Tier-1 judge. "
+        "Hard-capped at 2,000 (the cost ceiling) regardless of this value.",
+    ),
+    llm: bool = typer.Option(
+        False,
+        "--llm/--no-llm",
+        help="Use the Haiku-4.5 semantic plausibility judge (set "
+        "RELIEF_PROBE_LLM_MODEL to override). Needs the `agent` extra + "
+        "ANTHROPIC_API_KEY. Default is the deterministic heuristic judge.",
+    ),
+    gate: bool = typer.Option(
+        False,
+        "--gate/--no-gate",
+        help="Also run the validation gate: does Tier-1 re-ranking improve lift@k "
+        "over the composite alone on the resolved DOJ labels?",
+    ),
+    concurrency: int = typer.Option(
+        8,
+        "--concurrency",
+        help="Max concurrent LLM calls (--llm only). Higher is faster until the "
+        "API rate limit's backoff erases the gain; lower if you get throttled.",
+    ),
+) -> None:
+    """M7 Tier 1 — escalate the top composite leads to a plausibility judge.
+
+    Tier 0 (the composite) ranks all loans for free; this re-ranks only the top-k
+    by "could this business plausibly justify this loan?". The LLM NEVER sees more
+    than the hard cap (2,000) — that bound is logged. A high triage score is a
+    lead for review, not evidence of fraud — see RESPONSIBLE_USE.md.
+    """
+    from relief_probe.triage.core import triage as run_triage
+    from relief_probe.triage.judge import LlmJudge, heuristic_judge
+
+    if llm:
+        from relief_probe.config import llm_model
+
+        model = llm_model()
+        judge = LlmJudge(model=model, max_concurrency=concurrency)
+    else:
+        model = None
+        judge = heuristic_judge
+
+    with connect() as con:
+        n_signals = con.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+        if n_signals == 0:
+            console.print(
+                "[yellow]No signals.[/] Run `relief-probe score` (or `benchmark`) "
+                "first to populate the composite ranking."
+            )
+            raise typer.Exit(code=1)
+        try:
+            result = run_triage(con, top_k=top_k, judge=judge, model=model)
+        except RuntimeError as exc:  # missing extra / API key on the --llm path
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=1) from None
+
+        tel = result["telemetry"]
+        judged = tel["n_judged"]
+        if tel["cap_hit"]:
+            console.print(
+                f"[yellow]Capped:[/] requested {tel['requested_top_k']:,} but the "
+                f"hard cap is {tel['max_triage']:,} — judging {judged:,}."
+            )
+        console.print(
+            f"Tier-1 judge [bold]{tel['judge']}[/]"
+            + (f" ({model})" if model else "")
+            + f" over [bold]{judged:,}[/] composite leads …"
+        )
+        if tel.get("n_errors"):
+            console.print(
+                f"[yellow]{tel['n_errors']} loan(s)[/] fell back to a neutral "
+                "verdict after retries (not truly judged)."
+            )
+
+        t = Table(title=f"Top leads re-ranked by Tier-1 plausibility (top {top_k})")
+        for col in ("rank", "loan_number", "borrower_name", "naics", "amount",
+                    "jobs", "implaus", "verdict", "triage", "composite"):
+            t.add_column(col)
+        for i, s in enumerate(result["ranked"][:25], start=1):
+            c = s.candidate
+            t.add_row(
+                str(i),
+                str(c.loan_number),
+                (c.borrower_name or "")[:24],
+                str(c.naics_code or ""),
+                f"${c.amount:,.0f}" if c.amount is not None else "",
+                f"{c.jobs:g}" if c.jobs is not None else "",
+                str(s.verdict.implausibility),
+                s.verdict.verdict,
+                f"{s.triage_score:.2f}",
+                f"{c.composite_score:.2f}",
+            )
+        console.print(t)
+
+        if gate:
+            from relief_probe.triage.gate import validation_gate
+
+            n_labels = con.execute("SELECT COUNT(*) FROM fraud_cases").fetchone()[0]
+            if n_labels == 0:
+                console.print(
+                    "[yellow]No labels[/] — skipping the gate. Run `fetch-labels` "
+                    "then `resolve-labels` first."
+                )
+            else:
+                console.print("Validation gate (composite vs triage re-rank) …")
+                # Reuse the verdicts already computed above — never re-judge (on
+                # the LLM path that would double the model cost).
+                head = [s.candidate.loan_number for s in result["ranked"]]
+                g = validation_gate(
+                    con, top_k=top_k, judge=judge, reranked_head=head
+                )
+                gt = Table(
+                    title=f"Gate · slice {g['slice']} · {g['n_labeled_fraud']} "
+                    f"labels · judge {g['judge']}"
+                )
+                gt.add_column("k")
+                gt.add_column("composite lift", justify="right")
+                gt.add_column("triage lift", justify="right")
+                gt.add_column("Δ", justify="right")
+                for k in g["ks"]:
+                    row = g["per_k"][k]
+                    cl = row["composite"]["lift"]
+                    tl = row["triage"]["lift"]
+                    d = row["lift_delta"]
+                    gt.add_row(
+                        f"{k:,}",
+                        "—" if cl is None else f"{cl:.1f}x",
+                        "—" if tl is None else f"{tl:.1f}x",
+                        "—" if d is None else f"{d:+.1f}",
+                    )
+                console.print(gt)
+                _gate_styles = {
+                    "improved": "green", "neutral": "yellow", "regressed": "red"
+                }
+                gv = g["verdict"]
+                console.print(
+                    f"Gate verdict: [{_gate_styles.get(gv, 'white')}]{gv}[/] "
+                    f"(total lift Δ {g['total_lift_delta']:+.1f}). "
+                    "[dim]Re-ranking only permutes the top-k, so k≥top_k is "
+                    "unchanged by design.[/]"
+                )
+
+    console.print(
+        "[dim]A high triage score is a statistical lead for review, not evidence "
+        "of fraud. See RESPONSIBLE_USE.md.[/]"
+    )
+
+
 @app.command(name="serve-mcp")
 def serve_mcp() -> None:
     """Serve the four read-only investigator tools over MCP (stdio).
@@ -494,6 +745,36 @@ def ingest_establishments(
     console.print(
         f"[green]Loaded {inserted:,} establishment rows[/] into `establishments`."
     )
+
+
+@app.command(name="ingest-naics")
+def ingest_naics(
+    path: str = typer.Argument(
+        ..., help="Local path to a Census NAICS code/title CSV."
+    ),
+) -> None:
+    """Load a LOCAL Census NAICS code/title CSV into the `naics_titles` table.
+
+    Gives the (exploratory) `naics_name_mismatch` detector finer industry titles than
+    its bundled 2-digit sector defaults. Does NOT download — the NAICS file is a manual
+    public download (census.gov/naics); it takes a local path only.
+    """
+    from pathlib import Path
+
+    from relief_probe.ingest.naics import load_naics_titles
+
+    csv_path = Path(path)
+    if not csv_path.exists():
+        console.print(f"[yellow]No such file[/] {path}")
+        raise typer.Exit(code=1)
+    console.print(f"[bold]Loading NAICS titles[/] from {csv_path} …")
+    with connect() as con:
+        try:
+            inserted = load_naics_titles(con, csv_path)
+        except ValueError as exc:
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=1) from None
+    console.print(f"[green]Loaded {inserted:,} NAICS titles[/] into `naics_titles`.")
 
 
 if __name__ == "__main__":
