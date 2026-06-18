@@ -29,8 +29,10 @@ promotes any that show it:
 * ``lender_concentration`` — an UNSUPERVISED, label-free LENDER signal (Loop 3): per
   originating lender, the RATE of program-rule-implausible ($/job over the per-employee
   payroll cap) loans, robust-z scored across lenders; flags every loan from a lender in
-  the extreme upper tail. Built + tested; pending real-data lift validation before any
-  promotion (the GAO "a few fintech auto-approval lenders" motivation).
+  the extreme upper tail (the GAO "a few fintech auto-approval lenders" motivation).
+  VALIDATED on the real warehouse: ZERO lift (0 prosecuted hits in the top 5,000;
+  independent of the other detectors but uncorrelated with the labels — high-cap-busting
+  lenders aren't where prosecuted fraud sits), so it stays exploratory.
 
 Kept for investigation/evidence and opt-in scoring; not in the headline ranking.
 

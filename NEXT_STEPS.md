@@ -85,7 +85,7 @@ there are real businesses to receive them.
      already caught. So it stays in `registry.exploratory_detectors()` (SIGN-010);
      `all_detectors()` remains the 3 validated detectors. An honest marginal result.
 
-### Loop 3 — lender_concentration detector ✅ (built + tested; exploratory, pending real-data validation)
+### Loop 3 — lender_concentration detector ✅ (built + validated zero-lift; kept exploratory)
 
 A new **unsupervised, peer-relative, label-free** detector targeting a *lender-level*
 pattern the per-loan detectors miss.
@@ -109,12 +109,13 @@ pattern the per-loan detectors miss.
   disclosure release is in **DATA Act / USAspending format** and carries **no
   per-loan jobs or NAICS field**, so the cross-program mismatch detector can't be built
   from public data at the granularity needed to join. `lender_concentration` replaced it.
-- **MANUAL post-loop step (not done in the loop):** score the **real** warehouse with
-  `lender_concentration` included (`run_all(con, detectors=[*all_detectors(),
-  *exploratory_detectors()])`), then `benchmark` to measure its standalone lift@k +
-  recall and its overlap (Jaccard / `detector_overlap`) with the production composite.
-  **Promote into `all_detectors()` only if it shows independent lift** — mirroring the
-  H6 / `establishment_overcount` discipline. Otherwise it stays exploratory.
+- **Real-data verdict (validated):** **zero lift** — 0 prosecuted hits in the top 5,000
+  at min_z 3 or 5 (flags ~3% of the slice / 324 lenders; Jaccard 0.02 vs payroll, 0.001
+  vs multiple_funded — independent but uncorrelated with the labels). The high-cap-busting
+  lenders aren't where the prosecuted fraud sits (likely the documented industry-mix FP:
+  NAICS-72-heavy books bust the per-employee cap legitimately). **Kept exploratory** (it
+  was already registered there — no promotion). Mirrors the H6 / `establishment_overcount`
+  discipline: built, validated, honest negative.
 
 ## M3 — label construction ✅ (done, the differentiator)
 
