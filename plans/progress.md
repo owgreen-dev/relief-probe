@@ -69,3 +69,15 @@ SEEDED tmp_path warehouses — never the real data/ warehouse, never invent numb
   Strictly-above-cap deliberately scores 0 here (that's payroll_cap_exceedance) — the
   two don't double-count the band. Evidence lists `signals_fired`, divisor, implied
   per-employee + cap. 83 tests pass. NOT yet registered (that's L1-004).
+- **L1-003 done** (`multiple_funded_loans.py` + `tests/test_multiple_funded_loans.py`).
+  Groups loans by `entity_key` (L1-001), skipping unkeyable (None) entities. Per-entity
+  counts loans per `processing_method` (None kept as its own bucket). Excess over the
+  one-per-draw allowance: `excess = max(sum_draw(max(0,count-1)), n_loans-2)` — so 2
+  same-draw loans OR any 3rd funded loan → excess>=1; legit 1 PPP + 1 PPS → excess 0
+  (quiet). Every loan in a flagged entity emits a Signal; score = float(excess),
+  monotonic in extra-loan count (total_amount in evidence for triage, NOT scoring).
+  Evidence: entity_key, n_loans, excess_loans, per_draw_counts, total_amount,
+  loan_numbers (capped 25). DISTINCT from duplicate_address_ring: that finds many
+  distinct borrowers at one building; this finds ONE resolved borrower across many
+  loans (test_distinct_from_address_ring asserts co-located distinct names stay quiet).
+  89 tests pass. NOT yet registered (that's L1-004).

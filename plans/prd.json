@@ -53,7 +53,8 @@
         "Verification passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "GAO-validated indicator (~22k recipients with multiple funded loans). The precise version of the address idea: resolve the ENTITY, count its funded loans against the 1-per-draw rule. Reuse entity_key from L1-001 and processing_method (PPP/PPS)."
     },
     {
