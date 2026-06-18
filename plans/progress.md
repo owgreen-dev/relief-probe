@@ -65,3 +65,17 @@ validation + promotion is a MANUAL post-loop step.
   (ZBP_LANDING_URL + note) — no hardcoded fragile URL. Tests in
   tests/test_establishments_loader.py against a synthetic CSV (mixed-case headers +
   blank est -> NULL). 95 tests pass.
+- L2-002 (establishment_overcount detector): new
+  detectors/establishment_overcount.py. Buckets loans into (borrower_zip, naics-cell)
+  where the cell is naics_code truncated to `naics_digits` leading digits (default 6,
+  configurable to 4/2 for denser ZBP coverage). Joins each cell to the establishments
+  count and flags when ratio = ppp_loan_count / max(establishments, 1) >= min_ratio
+  (default 4.0); score = log(ratio), monotonic, identical across the cell. Key design
+  choices: (1) a cell with NO matching ZBP row is SKIPPED, not flagged — absent != zero
+  establishments, so we never penalize cells outside the loaded slice (deliberate
+  FN-over-FP). (2) Graceful empty/missing: try/except duckdb.CatalogException + empty
+  est_map -> []. (3) null/blank zip or naics filtered in SQL. Read-only. Both min_ratio
+  and naics_digits are constructor params. NOT yet registered — that's L2-003. Evidence:
+  zip, naics_cell, naics_digits, ppp_loan_count, establishment_count, ratio, min_ratio.
+  Tests in tests/test_establishment_overcount.py seed both loans + establishments in
+  tmp_path. 102 tests pass.

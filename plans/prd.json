@@ -36,7 +36,8 @@
         "Verification passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Griffin/Kruger establishment-overcount. Orthogonal to $/job: it measures implausible loan DENSITY per industry-geography, not loan size. Document false-positive modes (ZBP vintage predates 2020 growth; home-based/online businesses legitimately lack local establishments; thin cells)."
     },
     {
