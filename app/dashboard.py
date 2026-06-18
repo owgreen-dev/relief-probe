@@ -66,7 +66,7 @@ def leads_tab() -> None:
     rk = ranking(con, top)
     cols = ["loan_number", "borrower_name", "naics_code", "state",
             "amount", "jobs_reported", "composite_score", "n_signals", "detectors"]
-    st.dataframe(rk[cols], use_container_width=True, hide_index=True)
+    st.dataframe(rk[cols], width="stretch", hide_index=True)
     st.caption(
         "Top leads are typically large loans claiming very few jobs — the textbook "
         "PPP pattern. Composite = max(detector z) + 0.5·(corroborating detectors)."
@@ -187,7 +187,7 @@ def data_tab() -> None:
     if cov.empty:
         st.warning("No signals yet — run `relief-probe score`.")
     else:
-        st.dataframe(cov, use_container_width=True, hide_index=True)
+        st.dataframe(cov, width="stretch", hide_index=True)
         st.caption(
             "How many $150k+ loans each detector flags. Only the production detectors "
             "feed the composite; exploratory detectors appear only if scored in."
@@ -228,12 +228,12 @@ def vision_tab() -> None:
 
     col1, col2 = st.columns(2)
     with col1:
-        st.image(img, caption="Uploaded", use_container_width=True)
+        st.image(img, caption="Uploaded", width="stretch")
     with col2:
         st.image(
             ela_image(img),
             caption="ELA (bright = high error)",
-            use_container_width=True,
+            width="stretch",
         )
     st.metric("P(forged)", f"{p:.1%}", delta_color="off")
     st.progress(min(max(p, 0.0), 1.0))

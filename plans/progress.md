@@ -74,3 +74,12 @@ promotion is manual after real-data validation. Never touch the real data/ wareh
 - Registry test seed gotcha: the DEFAULT detector uses min_loans=100, so the
   integration seed gives every lender 100 loans (BADBANK 90% bust, clean peers at
   varied 0/5/10% so cross-lender MAD>0). Full verify: 119 passed, ruff clean.
+- L3-003 DONE (docs only, no code): README exploratory-detector catalog now has a
+  `lender_concentration` bullet (unsupervised/peer-relative/label-free design, why
+  label-free = avoid prosecution-bias leakage + leakage, GAO motivation, NAICS-72
+  industry-mix false-positive mode, NO numbers). NEXT_STEPS.md gained a "Loop 3" section:
+  built exploratory; recorded the EIDL↔PPP DROP (public COVID-EIDL = DATA Act/USAspending
+  format, no per-loan jobs/NAICS field — do not re-attempt); added the MANUAL post-loop
+  step (score real warehouse with the detector included, measure lift+overlap, promote
+  only on independent lift). Qualitative only. Full verify: 119 passed, ruff clean.
+- ALL Loop 3 tasks (L3-001..L3-003) now pass.

@@ -49,7 +49,8 @@
         "Verification passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Docs only. Record the EIDL data-availability negative finding too so it isn't re-attempted."
     }
   ]

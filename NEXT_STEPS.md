@@ -85,11 +85,36 @@ there are real businesses to receive them.
      already caught. So it stays in `registry.exploratory_detectors()` (SIGN-010);
      `all_detectors()` remains the 3 validated detectors. An honest marginal result.
 
-Next: **Loop 3** — EIDL↔PPP jobs mismatch, gated on confirming the public COVID-EIDL
-release carries an employee/jobs field (else the mismatch detector can't be built).
+### Loop 3 — lender_concentration detector ✅ (built + tested; exploratory, pending real-data validation)
 
-The **EIDL-vs-PPP jobs mismatch** detector is deferred to **Loop 3**, pending a check on
-whether EIDL loan-level data is publicly available at the granularity needed to join.
+A new **unsupervised, peer-relative, label-free** detector targeting a *lender-level*
+pattern the per-loan detectors miss.
+- **`lender_concentration`** (`detectors/lender_concentration.py`) — groups loans by
+  `originating_lender` (only lenders with `>= min_loans`, default 100), computes each
+  lender's **rate** of cap-busting loans (label-free program-rule predicate:
+  `amount / jobs_reported >= the per-employee ceiling`, reusing `payroll_cap` constants
+  $20,833 / $29,167-for-NAICS-72), robust-z's that rate **across lenders**
+  (`stats.robust_z`, `min_mad` floor), and flags **every** loan from a lender whose
+  z `>= min_z` (default 3.0). Score = the lender's z (one anomaly value per book). It
+  fires even on the individually-clean loans of a structurally-bad book. Motivation:
+  **GAO** finding that a handful of nonbank/fintech auto-approval lenders originated a
+  disproportionate share of fraud-case loans. Keys on *rate*, not volume (big banks have
+  legitimately huge books). Registered in `registry.exploratory_detectors()` only
+  (`all_detectors()` UNCHANGED — SIGN-010); read-only.
+- **Deliberately LABEL-FREE (SIGN-012):** never reads `fraud_cases` / any label table —
+  training on the prosecution labels would leak the answer and inherit prosecution bias,
+  so the benchmark must stay an independent validator. Proven by a test that fires on a
+  warehouse with an **empty** `fraud_cases` table.
+- **EIDL↔PPP jobs-mismatch idea was DROPPED** (do not re-attempt): the public COVID-EIDL
+  disclosure release is in **DATA Act / USAspending format** and carries **no
+  per-loan jobs or NAICS field**, so the cross-program mismatch detector can't be built
+  from public data at the granularity needed to join. `lender_concentration` replaced it.
+- **MANUAL post-loop step (not done in the loop):** score the **real** warehouse with
+  `lender_concentration` included (`run_all(con, detectors=[*all_detectors(),
+  *exploratory_detectors()])`), then `benchmark` to measure its standalone lift@k +
+  recall and its overlap (Jaccard / `detector_overlap`) with the production composite.
+  **Promote into `all_detectors()` only if it shows independent lift** — mirroring the
+  H6 / `establishment_overcount` discipline. Otherwise it stays exploratory.
 
 ## M3 — label construction ✅ (done, the differentiator)
 
