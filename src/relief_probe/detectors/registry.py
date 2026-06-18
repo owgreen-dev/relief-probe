@@ -19,6 +19,10 @@ promotes any that show it:
 * ``amount_anomaly`` — per-loan round-number + payroll-cap "bunching" tells of a
   fabricated/reverse-engineered loan amount (Loop 1); validated WEAK (flags ~13%
   of the slice, ~0 lift through k=1000), so it stays out of the composite.
+* ``establishment_overcount`` — Census ZBP density signal (Loop 2): more PPP loans
+  in a ZIP x NAICS cell than there are business establishments there. Built + tested
+  but NOT yet validated against the real warehouse; held exploratory until a human
+  measures real-data lift and (if it shows independent lift) promotes it (SIGN-010).
 
 Kept for investigation/evidence and opt-in scoring; not in the headline ranking.
 
@@ -30,6 +34,7 @@ from __future__ import annotations
 from relief_probe.detectors.amount_anomaly import AmountAnomalyDetector
 from relief_probe.detectors.base import Detector
 from relief_probe.detectors.duplicate_address_ring import DuplicateAddressRingDetector
+from relief_probe.detectors.establishment_overcount import EstablishmentOvercountDetector
 from relief_probe.detectors.multiple_funded_loans import MultipleFundedLoansDetector
 from relief_probe.detectors.naics_cohort_outlier import NaicsCohortOutlierDetector
 from relief_probe.detectors.payroll_cap import PayrollCapExceedanceDetector
@@ -56,6 +61,7 @@ def exploratory_detectors() -> list[Detector]:
     return [
         DuplicateAddressRingDetector(),
         AmountAnomalyDetector(),
+        EstablishmentOvercountDetector(),
     ]
 
 

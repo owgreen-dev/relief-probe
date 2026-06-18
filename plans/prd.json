@@ -50,7 +50,8 @@
         "Verification passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Mirror the H6/Loop1 disposition: new detector goes to exploratory_detectors() until a human validates real-data lift (SIGN-010)."
     },
     {

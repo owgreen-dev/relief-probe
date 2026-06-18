@@ -20,6 +20,7 @@ from relief_probe.warehouse import connect
 
 PROMOTED_ID = "multiple_funded_loans"
 EXPLORATORY_ID = "amount_anomaly"
+OVERCOUNT_ID = "establishment_overcount"
 
 
 def _seed(con):
@@ -82,3 +83,45 @@ def test_explicit_run_all_includes_exploratory(tmp_path):
     counts = run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
     assert counts["amount_anomaly"] >= 1
     assert counts["multiple_funded_loans"] >= 1
+
+
+# --- L2-003: establishment_overcount stays EXPLORATORY (SIGN-010) ---------------
+
+
+def test_establishment_overcount_is_exploratory_not_promoted():
+    prod_ids = {d.detector_id for d in all_detectors()}
+    expl_ids = {d.detector_id for d in exploratory_detectors()}
+    # Built + tested but unvalidated on real data -> exploratory only, NOT composite.
+    assert OVERCOUNT_ID in expl_ids
+    assert OVERCOUNT_ID not in prod_ids
+
+
+def test_get_detector_resolves_establishment_overcount():
+    assert get_detector(OVERCOUNT_ID).detector_id == OVERCOUNT_ID
+
+
+def test_default_run_all_omits_establishment_overcount(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed_overcount(con)
+    counts = run_all(con)
+    assert OVERCOUNT_ID not in counts  # exploratory -> opt-in only
+
+
+def test_explicit_run_all_includes_establishment_overcount(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed_overcount(con)
+    counts = run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
+    # Seeded cell (29150 x 325510): 6 loans, 1 establishment -> overcount fires.
+    assert counts[OVERCOUNT_ID] >= 1
+
+
+def _seed_overcount(con):
+    """Seed loans + establishments so the overcount detector has a cell to fire on."""
+    con.executemany(
+        "INSERT INTO loans (loan_number, borrower_zip, naics_code) VALUES (?, ?, ?)",
+        [(f"OC-{i}", "29150", "325510") for i in range(6)],
+    )
+    con.executemany(
+        "INSERT INTO establishments (zip, naics, establishments) VALUES (?, ?, ?)",
+        [("29150", "325510", 1)],
+    )

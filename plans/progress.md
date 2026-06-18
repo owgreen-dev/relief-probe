@@ -79,3 +79,12 @@ validation + promotion is a MANUAL post-loop step.
   zip, naics_cell, naics_digits, ppp_loan_count, establishment_count, ratio, min_ratio.
   Tests in tests/test_establishment_overcount.py seed both loans + establishments in
   tmp_path. 102 tests pass.
+- L2-003 (register establishment_overcount as EXPLORATORY): added
+  EstablishmentOvercountDetector() to registry.exploratory_detectors() ONLY —
+  all_detectors() UNCHANGED (SIGN-010: no auto-promotion). Imported it in
+  registry.py and documented it in the module docstring's exploratory list.
+  get_detector('establishment_overcount') resolves it (it iterates both lists).
+  Added 4 tests to tests/test_registry.py: exploratory-not-promoted, get_detector
+  resolves, default run_all OMITS it, explicit run_all(detectors=[*all,*expl]) on a
+  seeded (loans + establishments) warehouse INCLUDES its count. Seed helper fires
+  cell (29150 x 325510): 6 loans / 1 establishment -> ratio 6 >= 4. 110 tests pass.
