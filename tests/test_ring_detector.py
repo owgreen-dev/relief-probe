@@ -7,12 +7,24 @@ touch the real data/ warehouse, and we plant no benchmark numbers.
 from __future__ import annotations
 
 from relief_probe.detectors.duplicate_address_ring import DuplicateAddressRingDetector
+from relief_probe.detectors.registry import all_detectors
+from relief_probe.detectors.runner import run_all
+from relief_probe.scoring import composite_ranking
 from relief_probe.warehouse import connect
 
 _INSERT = (
     "INSERT INTO loans (loan_number, borrower_name, borrower_address, "
     "borrower_city, borrower_state, borrower_zip, current_approval_amount) "
     "VALUES (?, ?, ?, ?, ?, ?, ?)"
+)
+
+# Richer insert for integration tests that also need NAICS/jobs (so a loan can
+# trip a $/job detector AND the ring detector and thereby corroborate).
+_INSERT_FULL = (
+    "INSERT INTO loans (loan_number, borrower_name, naics_code, "
+    "borrower_address, borrower_city, borrower_state, borrower_zip, "
+    "current_approval_amount, jobs_reported) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
 )
 
 
@@ -96,3 +108,73 @@ def test_score_is_monotonic_in_ring_size_and_dollars(tmp_path):
     sigs = DuplicateAddressRingDetector(min_ring_size=3).run(con)
     by_loan = {s.loan_number: s.score for s in sigs}
     assert by_loan["B0"] > by_loan["A1"]
+
+
+# --- H6-003: registration + generic integration (runner / composite) ----------
+
+RINGLEADER = "RING-1"
+
+
+def _seed_ring_plus_dollar_outlier(con):
+    """A NAICS cohort, plus a 3-borrower ring whose ringleader is ALSO a $/job
+    outlier — so it trips the ring detector AND both dollars-per-job detectors."""
+    rows = []
+    # 40 normal TX restaurants at ~$9k-$12k per job (jobs=10), no shared address
+    # (so they neither form a ring nor trip the $/job detectors).
+    for i in range(40):
+        amount = (9000 + i * 75) * 10
+        rows.append(
+            (f"N{i:03d}", f"Normal Diner {i}", "722511", None, None, "TX",
+             None, amount, 10)
+        )
+    # A ring of three DISTINCT borrowers at one building (varied formatting).
+    # The ringleader claims $200k/job — also a cohort outlier and over the cap.
+    rows += [
+        (RINGLEADER, "Shell A LLC", "722511", "100 Shell Street",
+         "Austin", "TX", "78701", 1_000_000, 5),
+        ("RING-2", "Shell B LLC", "722511", "100 SHELL ST",
+         "Austin", "TX", "78701", 110_000, 10),
+        ("RING-3", "Shell C LLC", "722511", "100 Shell St., Suite 5",
+         "Austin", "TX", "78701", 100_000, 10),
+    ]
+    con.executemany(_INSERT_FULL, rows)
+
+
+def test_detector_is_registered():
+    ids = {d.detector_id for d in all_detectors()}
+    assert "duplicate_address_ring" in ids
+
+
+def test_run_all_includes_ring_detector_count(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed_ring_plus_dollar_outlier(con)
+    counts = run_all(con)
+    # The runner iterates all_detectors() generically — no special-casing.
+    assert counts["duplicate_address_ring"] == 3
+    assert counts["naics_cohort_outlier"] >= 1
+    assert counts["payroll_cap_exceedance"] >= 1
+
+
+def test_composite_corroborates_ring_and_dollar_signals(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed_ring_plus_dollar_outlier(con)
+    run_all(con)
+
+    ranking = composite_ranking(con)
+    by_loan = {row["loan_number"]: row for _, row in ranking.iterrows()}
+
+    # The ringleader is implicated by THREE independent detectors — the composite
+    # picks this up generically (max percentile + corroboration bonus).
+    leader = by_loan[RINGLEADER]
+    assert leader["n_signals"] == 3
+    assert set(leader["detectors"]) == {
+        "duplicate_address_ring",
+        "naics_cohort_outlier",
+        "payroll_cap_exceedance",
+    }
+
+    # The other ring members are flagged by the ring detector alone (n_signals=1),
+    # so the ringleader's corroboration bonus ranks it strictly higher.
+    assert by_loan["RING-2"]["n_signals"] == 1
+    assert by_loan["RING-2"]["detectors"] == ["duplicate_address_ring"]
+    assert leader["composite_score"] > by_loan["RING-2"]["composite_score"]

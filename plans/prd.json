@@ -51,7 +51,8 @@
         "Verification passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "Integration only. The composite already does max(percentile) + corroboration generically, so a 3rd detector just works. Prove it with a seeded test that plants a loan tripping ring + payroll."
     },
     {

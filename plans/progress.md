@@ -70,3 +70,16 @@ SEEDED tmp_path warehouses — never touch the real data/ warehouse, never inven
   Read-only. Tests in tests/test_ring_detector.py (ring fires across formats, solo
   borrower no-fire, below-threshold no-fire, unkeyable excluded, score monotonicity).
   Used pandas-free pure-Python bucketing (collections.defaultdict) — simplest here.
+- H6-003 done: registered `DuplicateAddressRingDetector()` in
+  `detectors/registry.py::all_detectors()` (3rd entry) and refreshed its module
+  docstring "Live" list. NO runner/scoring/benchmark changes — they iterate
+  `all_detectors()` generically, so the 3rd detector "just works". Proved it in
+  tests/test_ring_detector.py with a seeded warehouse (`_INSERT_FULL` adds
+  naics_code/jobs_reported so a loan can trip both a $/job detector AND the ring):
+  a 3-borrower ring whose ringleader also claims $200k/job trips ALL THREE
+  detectors → composite n_signals==3 with both $/job + ring detector_ids; the
+  other ring members trip the ring alone (n_signals==1), so the ringleader's
+  corroboration bonus ranks it strictly higher. Tests: registration present,
+  run_all keys 'duplicate_address_ring'==3, composite corroboration.
+  NOTE: cohort outlier needs min_cohort_size>=30 — seed plants 40 normal peers
+  (722511|TX) so the planted outlier has a real cohort (mirrors test_detectors.py).
