@@ -79,7 +79,8 @@
         "Verification passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Docs only. Honest framing; the real Census numbers come from a human post-loop run."
     }
   ]

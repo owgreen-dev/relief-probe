@@ -98,3 +98,15 @@ validation + promotion is a MANUAL post-loop step.
   whitespace before asserting. tests/test_cli_ingest_establishments.py covers the
   loaded-count happy path (rows land in the tmp warehouse) + missing-file exit code.
   108 tests pass.
+- L2-005 (docs: establishment_overcount + Census ingest, qualitative): README — added an
+  `establishment_overcount` bullet to the EXPLORATORY detectors list (Griffin/Kruger
+  motivation, density-not-dollars framing, the skip-on-missing-ZBP-row choice, honest FP
+  modes: ZBP vintage predates 2020 growth / home-based businesses / thin cells; NO lift
+  numbers); added the `ingest-establishments PATH` line to Quickstart and a Census ZBP
+  row to the data-sources table. NEXT_STEPS.md — new "Loop 2" subsection under M2 covering
+  the establishments table+loader, the detector, the CLI, the exploratory disposition
+  (SIGN-010), and the explicit MANUAL post-loop step (download ZBP → ingest → measure lift
+  → promote only if independent lift). Noted EIDL-vs-PPP mismatch is deferred to Loop 3
+  pending an EIDL public-data availability check. docs/SCHEMA.md does NOT exist (criteria
+  said "if present") so it was correctly skipped — no docs/ dir. Docs-only, no code
+  touched; 108 tests still pass, ruff clean. ALL Loop 2 tasks (L2-001..005) now pass.
