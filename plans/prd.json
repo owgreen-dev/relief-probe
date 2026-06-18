@@ -67,7 +67,8 @@
         "Verification passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Mirror the H6 disposition exactly: exploratory_detectors() is the holding area until a human validates real-data lift and promotes. Do NOT touch all_detectors()."
     },
     {

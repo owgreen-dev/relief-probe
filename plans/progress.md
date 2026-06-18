@@ -81,3 +81,17 @@ SEEDED tmp_path warehouses — never the real data/ warehouse, never invent numb
   distinct borrowers at one building; this finds ONE resolved borrower across many
   loans (test_distinct_from_address_ring asserts co-located distinct names stay quiet).
   89 tests pass. NOT yet registered (that's L1-004).
+- **L1-004 done** (`registry.py` + `tests/test_registry.py`). Added
+  `AmountAnomalyDetector()` and `MultipleFundedLoansDetector()` to
+  `exploratory_detectors()` ONLY; `all_detectors()` untouched (still naics_cohort +
+  payroll_cap). Updated the registry module + function docstrings. `get_detector`
+  resolves both new ids (it already iterates all+exploratory). New test_registry.py
+  asserts: both ids in exploratory & disjoint from prod; prod set unchanged;
+  default `run_all(con)` omits them; explicit `run_all(con, all+exploratory)`
+  includes both counts. GOTCHA: adding to `exploratory_detectors()` broke a
+  pre-existing ring test (`test_composite_corroborates_ring_and_dollar_signals`)
+  because its ringleader loan is a round $1,000,000 → amount_anomaly fires too,
+  making n_signals 4 not 3. Fix: that test now pins the ring detector explicitly
+  (`[*all_detectors(), DuplicateAddressRingDetector()]`) instead of pulling the
+  whole exploratory bucket — keeps its intent and is robust to future exploratory
+  additions. 93 tests pass. Remaining: L1-005 (docs).

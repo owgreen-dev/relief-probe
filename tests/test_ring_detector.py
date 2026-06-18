@@ -171,8 +171,10 @@ def test_default_run_all_excludes_ring_but_explicit_list_includes_it(tmp_path):
 def test_composite_corroborates_ring_and_dollar_signals(tmp_path):
     con = connect(tmp_path / "wh.duckdb")
     _seed_ring_plus_dollar_outlier(con)
-    # Explicitly include the exploratory ring detector to test 3-way corroboration.
-    run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
+    # Explicitly include only the exploratory ring detector to test 3-way
+    # corroboration (pinning it keeps this focused as more exploratory detectors,
+    # e.g. amount_anomaly, get added to the bucket).
+    run_all(con, detectors=[*all_detectors(), DuplicateAddressRingDetector()])
 
     ranking = composite_ranking(con)
     by_loan = {row["loan_number"]: row for _, row in ranking.iterrows()}
