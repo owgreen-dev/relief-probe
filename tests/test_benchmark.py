@@ -6,7 +6,9 @@ from relief_probe.benchmark.core import (
     baseline_rankings,
     bootstrap_lift_cis,
     labeled_fraud_loans,
+    positive_rank_stats,
     ranking_metrics,
+    reciprocal_rank_fusion,
     run_benchmark,
 )
 from relief_probe.warehouse import connect
@@ -25,6 +27,52 @@ def test_ranking_metrics_math():
     # top-4 -> both hits; recall 1.0.
     assert m[4]["hits"] == 2
     assert m[4]["recall"] == 1.0
+
+
+def test_positive_rank_stats_math():
+    # 10 flagged loans; positives at ranks 2 and 4; population 100, so 0 unranked.
+    ranked = [f"L{i}" for i in range(10)]
+    positives = {"L1", "L3"}  # 0-based indices 1,3 -> 1-based ranks 2,4
+    s = positive_rank_stats(ranked, positives, population=100)
+    assert s["n_positives"] == 2
+    assert s["n_ranked"] == 2
+    assert s["n_unranked"] == 0
+    assert s["n_in_ranking"] == 10
+    assert s["mean_rank_ranked"] == 3.0  # (2+4)/2
+    assert s["median_rank_ranked"] == 3.0
+    # Concentration within the 10-long flagged list: mean rank 3 / 10 = 0.3 (< random).
+    assert s["mean_percentile_in_ranking"] == 0.3
+
+
+def test_positive_rank_stats_folds_unranked_at_worst():
+    # One positive flagged at rank 1, one positive never flagged (unranked).
+    ranked = ["L0"]
+    positives = {"L0", "MISSING"}
+    s = positive_rank_stats(ranked, positives, population=1000)
+    assert s["n_ranked"] == 1
+    assert s["n_unranked"] == 1
+    # Conservative population percentile folds the unranked positive in at
+    # rank=population (1000): mean of ranks {1, 1000} / 1000 = 500.5/1000.
+    assert s["mean_percentile_population_conservative"] == round(500.5 / 1000, 4)
+
+
+def test_reciprocal_rank_fusion_blends_by_rank_not_score():
+    # A appears high in both lists -> wins; an item high in only one ranks lower.
+    a = ["A", "B", "C"]
+    b = ["A", "C", "D"]
+    fused = reciprocal_rank_fusion([a, b], k=60)
+    assert fused[0] == "A"  # rank-1 in both
+    assert set(fused) == {"A", "B", "C", "D"}
+    # Weighting list b to zero recovers list a's order over a's items.
+    only_a = reciprocal_rank_fusion([a, b], weights=[1.0, 0.0])
+    assert only_a[:3] == ["A", "B", "C"]
+
+
+def test_reciprocal_rank_fusion_rejects_misaligned_weights():
+    import pytest
+
+    with pytest.raises(ValueError):
+        reciprocal_rank_fusion([["A"], ["B"]], weights=[1.0])
 
 
 def _seed(con):
@@ -65,6 +113,10 @@ def test_run_benchmark_ranks_labeled_loan_at_top(tmp_path):
     assert res["overall"][1]["lift"] > 1.0
     # Ablation reports both detectors.
     assert set(res["ablation"]) == {"naics_cohort_outlier", "payroll_cap_exceedance"}
+    # PU-honest rank stats are reported; the lone positive is the rank-1 lead.
+    pr = res["positive_ranks"]
+    assert pr["n_positives"] == 1
+    assert pr["median_rank_ranked"] == 1.0
 
 
 def test_baseline_rankings_ordering(tmp_path):

@@ -122,6 +122,94 @@ def ranking_metrics(
     return out
 
 
+def positive_rank_stats(
+    ranked: list[str], positives: set[str], population: int
+) -> dict:
+    """Average-rank / median-rank of the known positives — the PU-honest summary.
+
+    On a prosecution-biased positive-unlabeled (PU) sample, precision@k and lift@k
+    are NOT reliably estimable, but **recall@k and the rank of known positives
+    ARE** (they need only the labeled positives, never the unknown true negatives).
+    See arXiv 2509.24228. So this is the metric to trust over lift.
+
+    Ranks are 1-based within the flagged, score-descending ``ranked`` list. The
+    summary deliberately separates two things the headline lift conflates:
+
+    * **Concentration** — among the positives a detector *did* flag, how near the
+      top of the flagged list do they sit? ``mean_percentile_in_ranking`` is the
+      mean of ``rank / len(ranked)`` over flagged positives; **~0.5 is random, <0.5
+      means they concentrate at the top.** This is the honest "is the ordering
+      good" number, comparable to random.
+    * **Coverage** — what fraction of positives are flagged at all
+      (``n_ranked / n_positives``). Selective detectors can have excellent
+      concentration and poor coverage; lift@k hides the latter.
+
+    ``mean_percentile_population_conservative`` folds the unflagged positives in at
+    the worst rank (``population``) — a coverage-penalized number, NOT comparable to
+    random (it can exceed 0.5 simply because most positives went unflagged).
+    """
+    pos_ranks = [i + 1 for i, ln in enumerate(ranked) if ln in positives]
+    n_pos = len(positives)
+    n_ranked = len(pos_ranks)
+    n_in_ranking = len(ranked)
+    unranked = n_pos - n_ranked
+    conservative = pos_ranks + [population] * unranked
+    return {
+        "n_positives": n_pos,
+        "n_ranked": n_ranked,
+        "n_unranked": unranked,
+        "n_in_ranking": n_in_ranking,
+        "mean_rank_ranked": (
+            round(float(np.mean(pos_ranks)), 1) if n_ranked else None
+        ),
+        "median_rank_ranked": (
+            round(float(np.median(pos_ranks)), 1) if n_ranked else None
+        ),
+        # Concentration of flagged positives within the flagged list (~0.5 random).
+        "mean_percentile_in_ranking": (
+            round(float(np.mean(pos_ranks)) / n_in_ranking, 4)
+            if n_ranked and n_in_ranking
+            else None
+        ),
+        # Coverage-penalized over the whole population (NOT vs random).
+        "mean_percentile_population_conservative": (
+            round(float(np.mean(conservative)) / population, 4)
+            if n_pos and population
+            else None
+        ),
+    }
+
+
+def reciprocal_rank_fusion(
+    rankings: list[list[str]],
+    *,
+    k: int = 60,
+    weights: list[float] | None = None,
+) -> list[str]:
+    """Fuse several ranked loan lists by Reciprocal Rank Fusion (Cormack 2009).
+
+    ``score(d) = Σ_r w_r / (k + rank_r(d))`` over each ranking ``r`` the item
+    appears in (rank 1-based). RRF combines *ranks, not scores*, so an uncalibrated
+    list (e.g. a saturated LLM score) can neither swamp nor be swamped by a
+    z-score list — the failure mode that sank the additive triage blend (see
+    docs/LLM_RESEARCH.md). Returns loan_numbers in fused order, highest first.
+
+    The default ``k=60`` is Cormack's and needs no tuning. ``weights`` (one per
+    ranking, default all 1.0) encodes "trust ranking A more than B" with a single
+    ratio — tune at most one scalar, on a held-out split, if at all.
+    """
+    if weights is None:
+        weights = [1.0] * len(rankings)
+    if len(weights) != len(rankings):
+        raise ValueError("weights must align one-to-one with rankings")
+    fused: dict[str, float] = {}
+    for ranking, w in zip(rankings, weights, strict=True):
+        for rank, loan in enumerate(ranking, start=1):
+            fused[loan] = fused.get(loan, 0.0) + w / (k + rank)
+    # Sort by fused score desc; ties broken by loan_number for determinism.
+    return [ln for ln, _ in sorted(fused.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
 def bootstrap_lift_cis(
     ranked: list[str],
     positives: set[str],
@@ -299,6 +387,8 @@ def run_benchmark(
         "n_ranked": len(ranked),
         "overall": overall,
         "overall_ci": overall_ci,
+        # PU-honest summary: rank of known positives (trust over lift@k).
+        "positive_ranks": positive_rank_stats(ranked, positives, population),
         "n_boot": n_boot,
         "ablation": ablation,
         "baselines": baselines,
