@@ -74,6 +74,14 @@ its honesty.
 will fail to spawn. The full verify is `uv run --extra vision pytest && uvx ruff check .`.
 **Reason:** Matches the actual toolchain; avoids spurious verification failures.
 
+### SIGN-012: Unsupervised detectors must be label-free
+**Trigger:** Building a detector that could be tempted to use fraud_cases / labels.
+**Instruction:** Detectors must NOT read `fraud_cases` or any label table. Their signal
+comes from program rules + peer-relative statistics only. Prove it with a test that
+runs the detector on a warehouse with an EMPTY fraud_cases table.
+**Reason:** Using labels leaks the answer and inherits prosecution bias; the benchmark
+(which DOES use labels) must stay an independent validator, not part of the detector.
+
 ### SIGN-011: No network / no downloads in the loop
 **Trigger:** A feature needs an external data file (e.g. Census ZBP).
 **Instruction:** Do NOT download anything or hit the network. Write loaders that take a

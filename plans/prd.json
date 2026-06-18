@@ -1,87 +1,54 @@
 {
   "repo": "relief-probe",
-  "branchName": "ralph/loop2-establishment-overcount",
+  "branchName": "ralph/loop3-lender-concentration",
   "verifyCommand": "uv run --extra vision pytest && uvx ruff check .",
   "acceptanceCriteria": [
     "Verification passes (uv run --extra vision pytest && uvx ruff check .)",
     "All non-skipped features completed (passes: true)",
     "All pre-existing tests still pass unchanged"
   ],
-  "notes": "Loop 2 of the research-driven detector batch: the Census establishment-overcount detector (Griffin, Kruger & Mahajan, J.Finance 2023: 19% of first-draw loans 'excess' vs Census business-establishment counts; 36% for fintech). It flags loans in (geography x industry) cells where the number of PPP loans far exceeds the number of business establishments that actually exist there — a fraud pattern ORTHOGONAL to dollars-per-job. This needs a NEW public-data join: Census ZIP Business Patterns (ZBP) — establishment counts by ZIP x NAICS — so we can join directly on loans.borrower_zip (no zip->county crosswalk needed). CRITICAL METHODOLOGY (the H6/Loop1 lesson): the detector registers in registry.exploratory_detectors(), NOT all_detectors(); promotion into the composite is a MANUAL human decision after validating real-data lift, done AFTER this loop. CRITICAL GUARDRAILS: (1) NEVER download data or hit the network, and NEVER run the relief-probe CLI / open data/relief_probe.duckdb (the real warehouse). All tests seed BOTH a tiny loans table AND a tiny establishments table in a tmp_path warehouse via warehouse.connect(...), and the loader is tested against a small SYNTHETIC CSV fixture the test writes to tmp_path (NOT a real Census download). The real Census download + ingest + lift validation is a manual post-loop step. (2) Do NOT invent benchmark/lift NUMBERS in README/docs — qualitative only. (3) Entity key is loan_number (str). (4) REUSE patterns: ingest/loader.py (all_varchar=true + TRY_CAST, idempotent INSERT OR IGNORE), ingest/sources.py (source registry), warehouse/db.py SCHEMA_SQL (CREATE TABLE IF NOT EXISTS), detectors/base.py (Detector/Signal). Detectors are READ-ONLY. (5) Style: from __future__ import annotations, typed, module docstrings, ruff line-length 90. Commit ONE feature per iteration; set passes=true; update plans/progress.md; re-read plans/guardrails.md every iteration.",
+  "notes": "Loop 3: a lender_concentration detector (GAO: a handful of nonbank/fintech lenders with auto-approval originated a disproportionate share of fraud-case loans). CRITICAL DESIGN — UNSUPERVISED & LABEL-FREE: the detector must NOT read fraud_cases / any labels (that would leak the answer and inherit prosecution bias — the deep-research warned about exactly this). Instead it is PEER-RELATIVE across lenders: for each originating_lender with enough loans, compute the lender's RATE of program-rule-suspicious loans (a label-free predicate, default 'amount_per_job >= the per-employee cap', reusing payroll_cap.py constants), robust-z that rate across lenders (median/MAD via stats.robust_z), and flag every loan from a lender in the extreme upper tail. The signal = 'this loan came from a lender whose whole book is unusually full of cap-busting loans'. CRITICAL METHODOLOGY (H6/Loop1/Loop2 lesson): register in registry.exploratory_detectors(), NOT all_detectors(); promotion is a MANUAL human decision after real-data lift validation, done AFTER this loop. GUARDRAILS: (1) NEVER run the relief-probe CLI / open data/relief_probe.duckdb; all tests seed a tmp_path warehouse via warehouse.connect(...). (2) No invented benchmark NUMBERS in docs — qualitative only. (3) Entity key loan_number (str). (4) REUSE: detectors/base.py (Detector/Signal), stats.py (robust_z, with min_mad), payroll_cap.py (per-employee cap constants $20,833 / $29,167 for NAICS '72'). Detector is READ-ONLY and must work on a warehouse with an EMPTY fraud_cases table (proving it's label-free). (5) Style: from __future__ import annotations, typed, docstrings, ruff line-length 90. Commit ONE feature per iteration; set passes=true; update plans/progress.md; re-read plans/guardrails.md each iteration.",
   "features": [
     {
-      "id": "L2-001",
-      "title": "establishments table + Census ZBP loader",
+      "id": "L3-001",
+      "title": "lender_concentration detector (unsupervised, peer-relative, label-free)",
       "acceptanceCriteria": [
-        "warehouse/db.py SCHEMA_SQL gains an `establishments` table (CREATE TABLE IF NOT EXISTS): columns zip VARCHAR, naics VARCHAR, establishments INTEGER (establishment count for that ZIP x NAICS), with a documenting comment; the table is created by init_schema on connect like the others",
-        "New loader (e.g. ingest/establishments.py or a function in ingest/loader.py) load_zbp_csv(con, path) that reads a Census ZIP Business Patterns CSV with all_varchar=true and TRY_CAST (tolerant of blanks/malformed -> NULL), maps the relevant columns (a ZIP field, a NAICS field, an establishment-count field — Census ZBP uses headers like 'zip'/'naics'/'est'; map case-insensitively and document the mapping) into `establishments`, and is idempotent (INSERT OR IGNORE or DELETE+INSERT for the loaded rows)",
-        "ingest/sources.py gains a documented entry for the Census ZBP source (dataset/URL note; verified-as-of date) WITHOUT hardcoding a fragile URL into the loader — mirror how PPP sources are registered; the loader itself takes a local path (no network in tests)",
-        "tests/test_establishments_loader.py: write a small SYNTHETIC ZBP-style CSV to tmp_path, load it into a tmp_path warehouse, and assert the establishments rows/counts/types are correct and that re-loading is idempotent. NO real download, NO network.",
+        "New module src/relief_probe/detectors/lender_concentration.py defining LenderConcentrationDetector(Detector) with detector_id='lender_concentration' and a one-line summary",
+        "Groups loans by originating_lender; only considers lenders with >= min_loans loans (constructor param, documented default e.g. 100) so the rate is stable; for each such lender computes suspicious_rate = (# loans where amount_per_job = current_approval_amount/jobs_reported >= per-employee cap, jobs>=1) / (its loan count). The cap is the payroll_cap.py per-employee ceiling ($20,833; $29,167 for NAICS prefix '72') — a LABEL-FREE program rule",
+        "Robust-z the per-lender suspicious_rate across all qualifying lenders (stats.robust_z, optionally min_mad) and flag every loan from a lender whose z >= min_z (constructor param); score is the lender's z (or rate), comparable WITHIN this detector and monotonic in lender anomaly",
+        "Does NOT read fraud_cases or any labels; loans with null originating_lender or unusable jobs/amount are handled gracefully; read-only",
+        "tests/test_lender_concentration.py on a seeded tmp_path warehouse (with an EMPTY fraud_cases table, proving label-independence): a lender whose book is mostly cap-busting loans fires on ALL its loans; a clean peer lender stays quiet; lenders below min_loans are skipped; the detector returns results without ever querying fraud_cases",
         "Verification passes"
       ],
       "priority": 1,
-      "passes": true,
-      "completed_at": "2026-06-18",
-      "notes": "ZBP = ZIP Business Patterns (establishments by ZIP x NAICS) so we join on borrower_zip directly — avoids a zip->county crosswalk. Keep the loader path-based + schema-tolerant; the real Census file is downloaded manually post-loop."
+      "passes": false,
+      "notes": "The point is a LENDER-LEVEL signal: it flags even the individually-clean loans from a structurally-bad book, which per-loan detectors miss. Keep the suspicious predicate label-free and documented; peer-relative robust-z is the anomaly. Avoid raw volume (big banks legitimately have huge volume) — RATE is the metric."
     },
     {
-      "id": "L2-002",
-      "title": "establishment_overcount detector",
+      "id": "L3-002",
+      "title": "Register lender_concentration as EXPLORATORY + integration",
       "acceptanceCriteria": [
-        "New module src/relief_probe/detectors/establishment_overcount.py defining EstablishmentOvercountDetector(Detector) with detector_id='establishment_overcount' and a one-line summary",
-        "For each (borrower_zip, naics-cell) it compares the COUNT of PPP loans in that cell to the establishment count from `establishments` for the same cell, and flags loans in cells where loans far exceed establishments (an 'overcount'); NAICS granularity is a documented choice (e.g. match on the loan's naics_code, with a configurable truncation like 2- or 4-digit to ensure cells have establishment coverage) and the overcount threshold is a constructor parameter (e.g. min_ratio, default documented)",
-        "Each loan in a flagged cell emits a Signal scored monotonically in the overcount ratio (e.g. log of ppp_loan_count / max(establishments, 1)); evidence includes zip, naics cell used, ppp_loan_count, establishment_count, and the ratio",
-        "Gracefully returns [] when the `establishments` table is empty or missing (so the detector is safe before the Census data is ingested); loans with a null/blank zip or naics are skipped; read-only",
-        "tests/test_establishment_overcount.py on a seeded tmp_path warehouse (loans + establishments both seeded): a cell with many PPP loans but few establishments fires on all its loans; a cell with ample establishments stays quiet; empty establishments table -> no signals; evidence reports the ratio",
+        "registry.exploratory_detectors() includes LenderConcentrationDetector(); all_detectors() is UNCHANGED (naics_cohort + payroll_cap + multiple_funded_loans) — NOT auto-promoted",
+        "get_detector('lender_concentration') resolves it; registry module docstring updated to list it (built + tested; pending real-data validation)",
+        "tests: 'lender_concentration' in exploratory_detectors() and NOT in all_detectors(); default run_all(con) omits it; run_all(con, detectors=[*all_detectors(), *exploratory_detectors()]) on a seeded warehouse includes its count",
         "Verification passes"
       ],
       "priority": 2,
-      "passes": true,
-      "completed_at": "2026-06-18",
-      "notes": "Griffin/Kruger establishment-overcount. Orthogonal to $/job: it measures implausible loan DENSITY per industry-geography, not loan size. Document false-positive modes (ZBP vintage predates 2020 growth; home-based/online businesses legitimately lack local establishments; thin cells)."
+      "passes": false,
+      "notes": "Mirror the H6/Loop1/Loop2 disposition (SIGN-010). exploratory_detectors() now holds duplicate_address_ring, amount_anomaly, establishment_overcount, lender_concentration."
     },
     {
-      "id": "L2-003",
-      "title": "Register establishment_overcount as EXPLORATORY + integration",
+      "id": "L3-003",
+      "title": "Docs: catalog lender_concentration (qualitative)",
       "acceptanceCriteria": [
-        "registry.exploratory_detectors() includes EstablishmentOvercountDetector(); all_detectors() is UNCHANGED (the validated naics_cohort + payroll_cap + multiple_funded_loans set) — NOT auto-promoted",
-        "get_detector('establishment_overcount') resolves it; registry module docstring updated",
-        "tests: 'establishment_overcount' is in exploratory_detectors() and NOT in all_detectors(); default run_all(con) omits it; run_all(con, detectors=[*all_detectors(), *exploratory_detectors()]) on a seeded warehouse (loans + establishments) includes its count",
-        "Verification passes"
-      ],
-      "priority": 3,
-      "passes": true,
-      "completed_at": "2026-06-18",
-      "notes": "Mirror the H6/Loop1 disposition: new detector goes to exploratory_detectors() until a human validates real-data lift (SIGN-010)."
-    },
-    {
-      "id": "L2-004",
-      "title": "CLI to ingest the Census ZBP file",
-      "acceptanceCriteria": [
-        "A CLI command (e.g. `relief-probe ingest-establishments PATH` in src/relief_probe/cli.py) that loads a local Census ZBP CSV into the establishments table via the L2-001 loader and prints a row count — so the manual real-data ingest is one documented command",
-        "The command takes a local file path (it does NOT download — resolving/fetching the real file is a manual step; if a future resolver is added it lives in ingest/, not the CLI test path)",
-        "tests: invoke the command with typer.testing.CliRunner against a synthetic CSV + a tmp warehouse (use the existing connect()/warehouse fixture pattern; do NOT touch the real warehouse) and assert it reports the loaded count",
-        "Verification passes"
-      ],
-      "priority": 4,
-      "passes": true,
-      "completed_at": "2026-06-18",
-      "notes": "Keep it path-based and offline-testable. Mirrors the existing `ingest` command's structure."
-    },
-    {
-      "id": "L2-005",
-      "title": "Docs: establishment_overcount + the Census ingest step (qualitative)",
-      "acceptanceCriteria": [
-        "README detector catalog lists establishment_overcount as an EXPLORATORY detector (built + tested, pending real-data validation), cites the Griffin/Kruger motivation and honest false-positive modes; NO benchmark/lift numbers",
-        "README quickstart / docs mention the new `ingest-establishments` step and that the Census ZBP file is a manual public download",
-        "docs/SCHEMA.md (if present) documents the establishments table; NEXT_STEPS.md adds a 'Loop 2' entry: detector built exploratory + MANUAL post-loop step (download Census ZBP, ingest-establishments, run_all with the detector included, measure lift, promote if it shows independent lift). Note EIDL-vs-PPP mismatch remains Loop 3 pending an EIDL public-data availability check.",
+        "README detector catalog lists lender_concentration as an EXPLORATORY detector (built + tested, pending real-data validation), explains the UNSUPERVISED label-free peer-relative design (and why label-free: avoids prosecution-bias leakage), cites the GAO lender-concentration motivation, and states honest false-positive modes (a high cap-busting rate can reflect a lender's legitimate industry mix, e.g. NAICS-72-heavy books); NO benchmark/lift numbers",
+        "NEXT_STEPS.md: add a 'Loop 3' entry — lender_concentration built exploratory; note EIDL↔PPP was dropped (public COVID-EIDL is DATA Act format: no jobs/NAICS field); add the MANUAL post-loop step (score on the real warehouse with the detector included, measure lift + overlap, promote only if it shows independent lift)",
         "No fabricated metrics; qualitative only",
         "Verification passes"
       ],
-      "priority": 5,
-      "passes": true,
-      "completed_at": "2026-06-18",
-      "notes": "Docs only. Honest framing; the real Census numbers come from a human post-loop run."
+      "priority": 3,
+      "passes": false,
+      "notes": "Docs only. Record the EIDL data-availability negative finding too so it isn't re-attempted."
     }
   ]
 }
