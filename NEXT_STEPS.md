@@ -178,7 +178,13 @@ The same four read-only tools (`score_loan`, `peer_compare`, `check_fraud_case`,
 `investigate`) are exposed over MCP (`agent/mcp_server.py`, `relief-probe
 serve-mcp`); `mcp`/LLM deps are imported lazily so the core env stays green.
 
-## M7 — cost-aware LLM triage cascade (planned; run after H2 lands)
+## M7 — cost-aware LLM triage cascade (PLANNED — see docs/M7_PLAN.md)
+
+**Full grounded plan + cost estimate in [docs/M7_PLAN.md](docs/M7_PLAN.md).** Decided:
+build **H4 first** (the hand-labeled sample is the Tier-1 judge's calibration set), then
+**M7 Tier 1 only** (Haiku 4.5 plausibility scorer + `triage` CLI + validation gate).
+Established LLM-cascade pattern (FrugalGPT); Batch API (50% off) + prompt caching +
+structured outputs; ~$2–4 per run vs ~$8–16k to run the LLM over all 11.3M loans.
 
 Cheap deterministic triage narrows millions of loans to hundreds, then the LLM runs
 **only on that subset** — the right way to use an expensive model at scale.
