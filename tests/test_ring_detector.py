@@ -6,7 +6,10 @@ touch the real data/ warehouse, and we plant no benchmark numbers.
 
 from __future__ import annotations
 
+from relief_probe.benchmark import detector_flagged_loans, detector_overlap
 from relief_probe.detectors.duplicate_address_ring import DuplicateAddressRingDetector
+from relief_probe.detectors.naics_cohort_outlier import NaicsCohortOutlierDetector
+from relief_probe.detectors.payroll_cap import PayrollCapExceedanceDetector
 from relief_probe.detectors.registry import all_detectors
 from relief_probe.detectors.runner import run_all
 from relief_probe.scoring import composite_ranking
@@ -178,3 +181,79 @@ def test_composite_corroborates_ring_and_dollar_signals(tmp_path):
     assert by_loan["RING-2"]["n_signals"] == 1
     assert by_loan["RING-2"]["detectors"] == ["duplicate_address_ring"]
     assert leader["composite_score"] > by_loan["RING-2"]["composite_score"]
+
+
+# --- H6-004: independence — orthogonal to the $/job signal ---------------------
+
+RING_LOANS = {"OR-1", "OR-2", "OR-3"}
+
+
+def _seed_normal_dollar_ring(con):
+    """A ring whose loans have PERFECTLY NORMAL dollars-per-job.
+
+    40 normal TX restaurants (no shared address) establish a 722511|TX cohort with
+    a real median. The three ring borrowers sit at one building but their $/job
+    ($10k, jobs=10) lands squarely inside that cohort's spread AND far below the
+    NAICS-72 payroll cap — so the $/job detectors cannot see them. Only the
+    co-location (ring) signal fires, which is the whole point of H6.
+    """
+    rows = []
+    for i in range(40):
+        # per-job spans ~$9,000-$11,925 — the ring's $10,000/job is mid-cohort.
+        amount = (9000 + i * 75) * 10
+        rows.append(
+            (f"P{i:03d}", f"Normal Diner {i}", "722511", None, None, "TX",
+             None, amount, 10)
+        )
+    # Three DISTINCT borrowers at one building, varied formatting, normal $/job.
+    rows += [
+        ("OR-1", "Quiet A LLC", "722511", "7 Calm Street",
+         "Austin", "TX", "78701", 100_000, 10),
+        ("OR-2", "Quiet B LLC", "722511", "7 CALM ST",
+         "Austin", "TX", "78701", 100_000, 10),
+        ("OR-3", "Quiet C LLC", "722511", "7 Calm St., Suite 3",
+         "Austin", "TX", "78701", 100_000, 10),
+    ]
+    con.executemany(_INSERT_FULL, rows)
+
+
+def test_ring_with_normal_dollars_per_job_is_invisible_to_dollar_detectors(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed_normal_dollar_ring(con)
+
+    ring = {s.loan_number for s in DuplicateAddressRingDetector().run(con)}
+    naics = {s.loan_number for s in NaicsCohortOutlierDetector().run(con)}
+    payroll = {s.loan_number for s in PayrollCapExceedanceDetector().run(con)}
+
+    # The ring detector sees the co-location the $/job detectors cannot.
+    assert RING_LOANS <= ring
+    # Neither dollars-per-job detector flags the (normally-sized) ring loans.
+    assert RING_LOANS.isdisjoint(naics)
+    assert RING_LOANS.isdisjoint(payroll)
+
+
+def test_detector_overlap_is_pure_set_math():
+    a = {"L1", "L2", "L3"}
+    b = {"L3", "L4"}
+    ov = detector_overlap(a, b)
+    assert ov["n_a"] == 3
+    assert ov["n_b"] == 2
+    assert ov["intersection"] == 1  # only L3
+    assert ov["union"] == 4
+    assert ov["jaccard"] == round(1 / 4, 6)
+
+    # Disjoint sets → no overlap; empty sets → defined as 0.0 (no division).
+    assert detector_overlap({"X"}, {"Y"})["jaccard"] == 0.0
+    assert detector_overlap(set(), set())["jaccard"] == 0.0
+
+
+def test_overlap_of_ring_and_dollar_detectors_is_low(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed_normal_dollar_ring(con)
+    run_all(con)
+
+    ring = detector_flagged_loans(con, "duplicate_address_ring")
+    naics = detector_flagged_loans(con, "naics_cohort_outlier")
+    # The detectors flag disjoint loan sets here — corroboration, when it happens,
+    # is across independent views (Jaccard 0 on this synthetic seed).
+    assert detector_overlap(ring, naics)["jaccard"] == 0.0

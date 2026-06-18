@@ -36,6 +36,41 @@ def labeled_fraud_loans(con: duckdb.DuckDBPyConnection) -> set[str]:
     }
 
 
+def detector_flagged_loans(
+    con: duckdb.DuckDBPyConnection, detector_id: str
+) -> set[str]:
+    """Distinct loan_numbers a given detector flagged (from the ``signals`` table)."""
+    return {
+        str(r[0])
+        for r in con.execute(
+            "SELECT DISTINCT loan_number FROM signals WHERE detector_id = ?",
+            [detector_id],
+        ).fetchall()
+    }
+
+
+def detector_overlap(a: set[str], b: set[str]) -> dict:
+    """Set overlap between two detectors' flagged loan sets.
+
+    Used to argue that corroboration (a loan flagged by two detectors) is across
+    genuinely *independent* views rather than two restatements of the same signal:
+    a LOW Jaccard means the detectors mostly flag different loans, so the loans they
+    agree on are corroborated by orthogonal evidence. Pure set math — no I/O.
+
+    Returns counts plus the Jaccard index ``|a ∩ b| / |a ∪ b|`` (0.0 when both are
+    empty).
+    """
+    intersection = a & b
+    union = a | b
+    return {
+        "n_a": len(a),
+        "n_b": len(b),
+        "intersection": len(intersection),
+        "union": len(union),
+        "jaccard": round(len(intersection) / len(union), 6) if union else 0.0,
+    }
+
+
 def baseline_rankings(con: duckdb.DuckDBPyConnection) -> dict[str, list[str]]:
     """Whole-population baseline rankings to contrast against the composite detector.
 

@@ -65,7 +65,8 @@
         "Verification passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "This is the POINT of H6 — prove orthogonality on synthetic data. Real-data lift + overlap numbers are generated manually after the loop, not here."
     },
     {

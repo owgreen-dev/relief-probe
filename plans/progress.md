@@ -83,3 +83,19 @@ SEEDED tmp_path warehouses — never touch the real data/ warehouse, never inven
   run_all keys 'duplicate_address_ring'==3, composite corroboration.
   NOTE: cohort outlier needs min_cohort_size>=30 — seed plants 40 normal peers
   (722511|TX) so the planted outlier has a real cohort (mirrors test_detectors.py).
+- H6-004 done: synthetic INDEPENDENCE proof + overlap helper.
+  * Added `benchmark/core.py::detector_overlap(a, b)` (pure set math →
+    n_a/n_b/intersection/union/jaccard; jaccard=0.0 when union empty) and
+    `detector_flagged_loans(con, detector_id)` (distinct loan_numbers from the
+    `signals` table). Both exported from `benchmark/__init__.py`.
+  * tests/test_ring_detector.py: `_seed_normal_dollar_ring` plants 3 distinct
+    borrowers at one building whose $/job ($10k, jobs=10) sits MID-cohort
+    (722511|TX, 40 normal peers ~$9k-$11.9k/job) and far below the NAICS-72
+    payroll cap. Asserts ring detector flags them while naics_cohort_outlier and
+    payroll_cap_exceedance do NOT — orthogonal signal. Plus a pure unit test of
+    detector_overlap and a seeded test showing ring∩naics Jaccard == 0.0.
+  * Key: to be invisible to $/job detectors the ring loans must (a) land inside
+    their NAICSxstate cohort's median (robust_z~0 → not BH-flagged) and (b) be
+    below payroll_cap min_ratio (1.5x of $29,167 for NAICS 72). $10k/job clears
+    both. Real-data overlap/lift numbers remain a MANUAL post-loop step (no
+    invented numbers per SIGN-008).
