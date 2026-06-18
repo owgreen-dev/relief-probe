@@ -59,3 +59,14 @@ SEEDED tmp_path warehouses — never touch the real data/ warehouse, never inven
   tests/test_address.py (equivalence classes, distinct buildings, None cases, purity).
 - Ruff line-length is 90 — long test tuples must wrap; collapsed a 96-char `for` into
   a multi-line `variants` tuple to satisfy E501.
+- H6-002 done: `detectors/duplicate_address_ring.py::DuplicateAddressRingDetector`
+  (`detector_id='duplicate_address_ring'`, `__init__(min_ring_size=3)`). run() reads
+  all loans, keys each via `normalize_address`, buckets by key, and a RING = key with
+  >= min_ring_size DISTINCT borrower_names (a set of names, so one borrower with many
+  loans is NOT a ring; None keys excluded). Every loan in a ring emits a Signal with
+  the SAME score = `log1p(ring_size) + log1p(total_ring_amount)` (monotonic in both,
+  comparable within-detector). Evidence: normalized_address, ring_size (distinct
+  borrowers), n_loans, total_ring_amount, borrower_names_sample (capped at 10, sorted).
+  Read-only. Tests in tests/test_ring_detector.py (ring fires across formats, solo
+  borrower no-fire, below-threshold no-fire, unkeyable excluded, score monotonicity).
+  Used pandas-free pure-Python bucketing (collections.defaultdict) — simplest here.

@@ -37,7 +37,8 @@
         "Verification passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "Genuinely independent of the $/job detectors — this is a graph/co-location signal. Reuse Signal/base.py. Keep grouping in pandas or SQL; either is fine. Document FP modes (legit shared buildings, registered-agent services, strip malls)."
     },
     {
