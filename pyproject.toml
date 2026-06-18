@@ -29,6 +29,9 @@ viz = ["streamlit>=1.37"]
 ml = ["scikit-learn>=1.4"]
 # Document-authenticity vision tab (ID-forgery + amount-tamper detection).
 vision = ["pillow>=10.0", "scikit-learn>=1.4"]
+# Semantic text embeddings for the naics_name_mismatch detector (the default
+# HashingEmbedder is a dependency-free lexical proxy; this swaps in a real model).
+embeddings = ["sentence-transformers>=2.2"]
 
 [project.scripts]
 relief-probe = "relief_probe.cli:app"

@@ -34,6 +34,13 @@ promotes any that show it:
   independent of the other detectors but uncorrelated with the labels — high-cap-busting
   lenders aren't where prosecuted fraud sits), so it stays exploratory.
 
+* ``naics_name_mismatch`` — a SEMANTIC signal on the text the composite ignores: does
+  the borrower NAME fit its declared NAICS INDUSTRY? Embeds names + industry titles and
+  scores the declared industry's mismatch percentile (continuous, non-saturating — the
+  honest redo of the LLM-as-judge plausibility idea; see docs/LLM_RESEARCH.md). Default
+  offline embedder is a lexical proxy (weak); the real semantic signal needs the
+  ``embeddings`` extra. Built + tested; real-data validation pending the semantic model.
+
 Kept for investigation/evidence and opt-in scoring; not in the headline ranking.
 
 Planned: proceeds_anomaly.
@@ -48,6 +55,7 @@ from relief_probe.detectors.establishment_overcount import EstablishmentOvercoun
 from relief_probe.detectors.lender_concentration import LenderConcentrationDetector
 from relief_probe.detectors.multiple_funded_loans import MultipleFundedLoansDetector
 from relief_probe.detectors.naics_cohort_outlier import NaicsCohortOutlierDetector
+from relief_probe.detectors.naics_mismatch import NaicsNameMismatchDetector
 from relief_probe.detectors.payroll_cap import PayrollCapExceedanceDetector
 
 
@@ -74,6 +82,7 @@ def exploratory_detectors() -> list[Detector]:
         AmountAnomalyDetector(),
         EstablishmentOvercountDetector(),
         LenderConcentrationDetector(),
+        NaicsNameMismatchDetector(),
     ]
 
 

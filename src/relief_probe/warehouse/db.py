@@ -135,6 +135,18 @@ CREATE TABLE IF NOT EXISTS establishments (
     PRIMARY KEY (zip, naics)
 );
 
+-- NAICS code -> industry title, for the naics_name_mismatch detector (does a
+-- borrower's NAME semantically fit its declared INDUSTRY?). Optional + finer-grained:
+-- the detector falls back to bundled 2-digit sector titles when this is empty. Load a
+-- Census NAICS code/title CSV via `relief-probe ingest-naics PATH`. Raw headers map as:
+--   naics_code <- the NAICS code (2/4/6-digit, whatever granularity the file uses)
+--   title      <- the industry title text
+CREATE TABLE IF NOT EXISTS naics_titles (
+    naics_code VARCHAR,
+    title      VARCHAR,
+    PRIMARY KEY (naics_code)
+);
+
 -- Output contract: every detector emits rows here.
 -- evidence_json is a JSON string describing why the loan was flagged.
 CREATE TABLE IF NOT EXISTS signals (
