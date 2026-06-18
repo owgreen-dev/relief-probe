@@ -95,3 +95,14 @@ SEEDED tmp_path warehouses — never the real data/ warehouse, never invent numb
   (`[*all_detectors(), DuplicateAddressRingDetector()]`) instead of pulling the
   whole exploratory bucket — keeps its intent and is robust to future exploratory
   additions. 93 tests pass. Remaining: L1-005 (docs).
+- **L1-005 done** (`README.md` + `NEXT_STEPS.md`, docs only — no code/tests changed).
+  README detector catalog: added an "Exploratory detectors" bullet describing
+  `amount_anomaly` (round-number + cap-bunching; Griffin et al. motivation; distinct
+  from `payroll_cap_exceedance`) and `multiple_funded_loans` (entity resolution →
+  one-per-draw rule; GAO motivation; distinct from `duplicate_address_ring`), each with
+  its honest false-positive mode and the explicit "NOT in the default composite, pending
+  real-data validation" framing. NEXT_STEPS.md: new "Loop 1" entry under the M2 detector
+  backlog listing both as built-exploratory with a MANUAL post-loop step (score on real
+  warehouse, measure lift, promote only what shows independent lift — the H6 discipline).
+  NO benchmark/lift numbers anywhere (SIGN-008). Verify: 93 tests pass + ruff clean.
+  ALL Loop-1 tasks (L1-001..L1-005) now pass.

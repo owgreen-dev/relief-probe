@@ -81,7 +81,8 @@
         "Verification passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Docs only. Honest framing: these are candidates pending validation, exactly like the ring detector was before it was tested."
     }
   ]
