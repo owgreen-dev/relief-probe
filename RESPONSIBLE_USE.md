@@ -12,6 +12,12 @@ public data — nothing more. Read this before using or publishing any output.
 - **Built on public data only.** SBA published this loan-level data under FOIA; the
   enforcement labels are public DOJ/SBA-OIG records. No private or PII data beyond
   what is already public is used.
+- **Shared-address rings name real people and addresses.** The `duplicate_address_ring`
+  signal groups loans by a building-level address and surfaces the borrower names at
+  that address — but legitimate shared office buildings, strip malls, co-working spaces,
+  and registered-agent / commercial-filing addresses produce identical patterns. A ring
+  is a **review lead, not proof of fraud or coordination**; never present co-located
+  borrowers as a scheme on the basis of the score alone.
 
 ## The labels are positive-unlabeled (PU) and biased
 

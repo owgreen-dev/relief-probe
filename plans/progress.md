@@ -99,3 +99,17 @@ SEEDED tmp_path warehouses — never touch the real data/ warehouse, never inven
     below payroll_cap min_ratio (1.5x of $29,167 for NAICS 72). $10k/job clears
     both. Real-data overlap/lift numbers remain a MANUAL post-loop step (no
     invented numbers per SIGN-008).
+- H6-005 done (docs only, qualitative — zero invented numbers per SIGN-008):
+  * README: added a `duplicate_address_ring` entry to the Status detector catalog +
+    a dedicated "Independent corroboration" bullet framing it as the orthogonal
+    link-analysis signal that answers the "corroboration is two views of the same
+    $/job ratio" critique; states FP modes (shared offices, strip malls, registered-
+    agent addresses) honestly.
+  * NEXT_STEPS.md: marked H6 ✅ done with what shipped; added an explicit MANUAL
+    post-loop note to run `relief-probe score` + `benchmark` on the real warehouse
+    and record real overlap (detector_overlap Jaccard) + lift numbers there. Updated
+    the M2.1 planned list (duplicate_identity → shipped as duplicate_address_ring)
+    and the In-progress/Next-up section (next = H4 label precision).
+  * RESPONSIBLE_USE.md: added a "Shared-address rings name real people and addresses"
+    bullet — co-located borrowers are a review lead, not proof of fraud/coordination.
+  * All H6 features (H6-001..H6-005) now pass; verify = 73 tests + ruff clean.
