@@ -253,8 +253,10 @@ The build is complete and above-median on breadth + engineering + honesty, but t
   Result confirmed the worry: **@100 lift 29.7× has a 0.0–89.1× CI** (rests on one loan,
   includes zero), while **k≥500 CIs clear 1×** (@500 5.9–47.7×) — so the real signal is
   the @500–5000 band, not the headline @100. README updated to say so.
-- **H4 — Measure label precision** on a ~50-row hand-labeled sample → report a number,
-  not "high-precision."
+- **H4 — Measure label precision** ✅ Done — hand-adjudicated a stratified 51-row sample:
+  **~84–88% precision** (95% CI ≈ [72%, 92%]); FPs concentrate in the weaker `~`/no-state
+  tiers, exact `name+state+amount` is ~93%+ clean. Doubles as the M7 judge calibration set.
+  See [docs/LABEL_PRECISION.md](docs/LABEL_PRECISION.md).
 - **H5 — Vision honesty.** ELA hits ~100% on *engineered* synthetic splices → proves
   plumbing, not document-fraud detection. Either run on real IDNet/Find-it-again, or
   label the tab explicitly as a synthetic plumbing demo. Don't let "100%" stand naked.
@@ -296,8 +298,10 @@ Also still open: M4.1 learned PU scorer (`ml` extra); real vision data + CNN vs 
   detector, then validated it on real data: it's orthogonal (Jaccard ≈ 0.02) but has
   **no lift** against the prosecuted labels at any threshold, so it was **dropped from
   the default composite** (kept as an exploratory detector). Honest negative result.
-- **Next up (highest leverage):** H4 (measure label precision on a hand-labeled
-  sample). Then H7 temporal holdout before any label-aware tuning.
+- **Next up:** H4 done (label precision ~84–88%). Next build is **M7 Tier 1** (Haiku
+  plausibility scorer + `triage` CLI + lift gate — see docs/M7_PLAN.md), using the
+  exact-tier labels as the judge calibration set. Then H7 temporal holdout before any
+  label-aware tuning.
 
 ## Watch-outs
 
