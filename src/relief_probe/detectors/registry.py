@@ -4,7 +4,10 @@ New detectors register here. Keeping a single list lets the CLI, scoring, and
 benchmark iterate over "all detectors" without import gymnastics.
 
 Live in the default composite (validated to carry lift): naics_cohort_outlier
-(relative $/job), payroll_cap_exceedance (absolute $/job).
+(relative $/job), payroll_cap_exceedance (absolute $/job), multiple_funded_loans
+(entity resolution → borrowers holding more funded loans than the one-per-draw
+PPP/PPS rule allows; Loop 1 — promoted after real-data validation showed genuine
+independent lift, ~18-21x@500-1000, Jaccard <0.01 vs the $/job detectors).
 
 Exploratory (built + tested, but OUT of the default composite) — held here until a
 human validates real-data lift against the prosecuted-fraud labels and manually
@@ -14,9 +17,8 @@ promotes any that show it:
   that, on the real warehouse, shows ~base-rate (no) lift at every ring-size
   threshold and dilutes the composite mid-tail (see NEXT_STEPS H6).
 * ``amount_anomaly`` — per-loan round-number + payroll-cap "bunching" tells of a
-  fabricated/reverse-engineered loan amount (Loop 1).
-* ``multiple_funded_loans`` — entity resolution → borrowers holding more funded
-  loans than the one-per-draw PPP/PPS rule allows (Loop 1).
+  fabricated/reverse-engineered loan amount (Loop 1); validated WEAK (flags ~13%
+  of the slice, ~0 lift through k=1000), so it stays out of the composite.
 
 Kept for investigation/evidence and opt-in scoring; not in the headline ranking.
 
@@ -38,6 +40,7 @@ def all_detectors() -> list[Detector]:
     return [
         NaicsCohortOutlierDetector(),
         PayrollCapExceedanceDetector(),
+        MultipleFundedLoansDetector(),
     ]
 
 
@@ -53,7 +56,6 @@ def exploratory_detectors() -> list[Detector]:
     return [
         DuplicateAddressRingDetector(),
         AmountAnomalyDetector(),
-        MultipleFundedLoansDetector(),
     ]
 
 

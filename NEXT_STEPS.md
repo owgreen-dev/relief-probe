@@ -33,27 +33,26 @@ kept OUT of the default composite — independent yet no validated lift (see H6 
 Still planned (M2.1): `proceeds_anomaly` (payroll-proceed share vs jobs/term),
 `lender_concentration`.
 
-### Loop 1 — research-driven exploratory detectors ✅ (built + tested, NOT promoted)
+### Loop 1 — research-driven detectors ✅ (built, validated, dispositioned)
 
-Two new public-data detectors targeting patterns *different* from dollars-per-job, both
-registered in `registry.exploratory_detectors()` (NOT `all_detectors()` — the default
-composite is unchanged):
-- **`amount_anomaly`** (`detectors/amount_anomaly.py`) — per-loan round-number +
-  payroll-cap-maximization ("bunching") tells of a fabricated/reverse-engineered amount.
-  Reuses the per-employee cap constants from `payroll_cap.py`; the bunching band is
-  at/just-below the cap, distinct from `payroll_cap_exceedance` (above the cap).
-  Motivation: Griffin et al. round-number / cap-bunching forensic literature.
+Two new public-data detectors targeting patterns *different* from dollars-per-job, built
+exploratory then validated on the real ~11.3M-loan warehouse against the DOJ labels:
 - **`multiple_funded_loans`** (`detectors/multiple_funded_loans.py`) — entity resolution
   (normalized name + building-level address, `detectors/_entity.py::entity_key`) →
   borrowers exceeding the one-per-draw rule (≥2 same-draw loans or >2 funded total).
   Motivation: GAO finding of tens of thousands of multiply-funded recipients.
+  **VALIDATED + PROMOTED** to `all_detectors()`: selective (~0.1% of loans), genuine
+  independent lift (≈18× @500, ≈21× @1000; Jaccard <0.01 vs the $/job detectors). In the
+  composite it lifted the top (k=100/250) and recall@5000 (14→17 hits) without dilution.
+- **`amount_anomaly`** (`detectors/amount_anomaly.py`) — per-loan round-number +
+  payroll-cap-maximization ("bunching") tells of a fabricated/reverse-engineered amount.
+  Motivation: Griffin et al. round-number / cap-bunching forensic literature.
+  **VALIDATED WEAK, stays exploratory**: flags ~13% of the slice with ~0 lift through
+  k=1000 (like the ring detector). Kept in `exploratory_detectors()` for investigation.
 
-**MANUAL post-loop step (not done here):** score both on the real ~11.3M-loan warehouse
-via `run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])`, measure lift
-vs the DOJ labels (and detector_overlap vs the existing detectors), and **promote into
-`all_detectors()` only any that show real, independent lift** — mirroring the H6
-discipline (the ring detector looked good on synthetic data but had zero real lift). No
-lift numbers are claimed until that human validation runs.
+The H6 discipline worked: build candidates, validate on real labels, promote only what
+earns it. Next batch is **Loop 2** (Census CBP overcount + EIDL↔PPP jobs mismatch), which
+need new public-data ingests.
 
 ## M3 — label construction ✅ (done, the differentiator)
 

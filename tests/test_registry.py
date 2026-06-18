@@ -1,10 +1,11 @@
-"""Tests that the Loop 1 detectors are registered EXPLORATORY, not promoted.
+"""Tests for the Loop 1 detector registration + post-validation disposition.
 
-amount_anomaly and multiple_funded_loans are discoverable and runnable on an
-opt-in basis, but they stay OUT of the default composite (``all_detectors()``)
-until a human validates real-data lift and manually promotes them — exactly the
-H6 disposition the duplicate_address_ring detector already follows. All warehouses
-are seeded synthetically in a tmp_path DuckDB file; we never touch the real data.
+After real-data validation, ``multiple_funded_loans`` showed genuine independent
+lift and was PROMOTED into the default composite (``all_detectors()``), while
+``amount_anomaly`` was weak and stays EXPLORATORY (opt-in only) alongside
+``duplicate_address_ring`` — the same H6 discipline (promote only what validates).
+All warehouses are seeded synthetically in a tmp_path DuckDB file; we never touch
+the real data.
 """
 
 from __future__ import annotations
@@ -17,7 +18,8 @@ from relief_probe.detectors.registry import (
 from relief_probe.detectors.runner import run_all
 from relief_probe.warehouse import connect
 
-NEW_IDS = {"amount_anomaly", "multiple_funded_loans"}
+PROMOTED_ID = "multiple_funded_loans"
+EXPLORATORY_ID = "amount_anomaly"
 
 
 def _seed(con):
@@ -44,31 +46,37 @@ def _seed(con):
     )
 
 
-def test_new_detectors_are_exploratory_not_in_default_composite():
+def test_disposition_after_validation():
     prod_ids = {d.detector_id for d in all_detectors()}
     expl_ids = {d.detector_id for d in exploratory_detectors()}
-    # Held in the exploratory holding area...
-    assert NEW_IDS <= expl_ids
-    # ...and NOT auto-promoted into the headline composite.
-    assert NEW_IDS.isdisjoint(prod_ids)
-    # all_detectors() is unchanged: still only the two validated $/job detectors.
-    assert prod_ids == {"naics_cohort_outlier", "payroll_cap_exceedance"}
+    # multiple_funded_loans validated (independent lift) -> promoted to composite.
+    assert PROMOTED_ID in prod_ids
+    assert PROMOTED_ID not in expl_ids
+    # amount_anomaly was weak -> stays exploratory, out of the composite.
+    assert EXPLORATORY_ID in expl_ids
+    assert EXPLORATORY_ID not in prod_ids
+    # The production set is exactly the two $/job detectors plus the promoted one.
+    assert prod_ids == {
+        "naics_cohort_outlier",
+        "payroll_cap_exceedance",
+        "multiple_funded_loans",
+    }
 
 
 def test_get_detector_resolves_both_new_ids():
-    for detector_id in NEW_IDS:
+    for detector_id in (PROMOTED_ID, EXPLORATORY_ID):
         assert get_detector(detector_id).detector_id == detector_id
 
 
-def test_default_run_all_excludes_new_detectors(tmp_path):
+def test_default_run_all_includes_promoted_excludes_exploratory(tmp_path):
     con = connect(tmp_path / "wh.duckdb")
     _seed(con)
     counts = run_all(con)
-    for detector_id in NEW_IDS:
-        assert detector_id not in counts
+    assert PROMOTED_ID in counts  # promoted -> default composite
+    assert EXPLORATORY_ID not in counts  # exploratory -> opt-in only
 
 
-def test_explicit_run_all_includes_new_detectors(tmp_path):
+def test_explicit_run_all_includes_exploratory(tmp_path):
     con = connect(tmp_path / "wh.duckdb")
     _seed(con)
     counts = run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
