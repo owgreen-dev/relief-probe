@@ -54,7 +54,7 @@ The H6 discipline worked: build candidates, validate on real labels, promote onl
 earns it. Next batch is **Loop 2** (Census ZBP overcount), which needs a new public-data
 ingest.
 
-### Loop 2 — Census establishment-overcount detector ✅ (built exploratory; manual validation pending)
+### Loop 2 — Census establishment-overcount detector ✅ (built + validated; kept exploratory)
 
 A new public-data join + detector targeting loan **density**, orthogonal to the
 dollars-per-job ratio: where far more PPP loans were made in a `(ZIP × NAICS)` cell than
@@ -73,16 +73,20 @@ there are real businesses to receive them.
   skipped (absent ≠ zero); empty/missing table → `[]`; read-only.
 - **CLI** `relief-probe ingest-establishments PATH` (`cli.py`) — one documented command to
   load a manually-downloaded local ZBP CSV; it does NOT download.
-- **Disposition (mirrors H6/Loop 1):** registered in `registry.exploratory_detectors()`,
-  NOT `all_detectors()` (SIGN-010). It is **built + tested on synthetic data only.**
+- **Validated on the real warehouse (June 2026):** ingested Census **ZBP 2018** detail
+  (`zbp18detail`, 2.87M ZIP×NAICS rows) via `ingest-establishments`. Two findings:
+  1. **ZIP+4 join bug (fixed):** `loans.borrower_zip` mixes 5-digit and ZIP+4; ZBP keys
+     on 5-digit. The detector now truncates to the first 5 digits — coverage went 1.2M →
+     5.1M matched loans. (Test: `test_zip_plus_four_loans_match_five_digit_establishments`.)
+  2. **Verdict — kept exploratory.** Weak *standalone* independent lift (~18×@500, recall
+     ~1.8%@5000; Jaccard <0.01 vs the other detectors), but promoting it into the
+     composite changed nothing (4-detector benchmark: +1 hit @2000, identical at every
+     other k, recall@5000 unchanged at 5.2%) — the prosecuted loans it catches are
+     already caught. So it stays in `registry.exploratory_detectors()` (SIGN-010);
+     `all_detectors()` remains the 3 validated detectors. An honest marginal result.
 
-**MANUAL post-loop step (human, after this loop):** download a Census ZBP vintage from the
-landing page in `ingest/sources.py` (`ZBP_LANDING_URL`); `relief-probe
-ingest-establishments <file>`; run `run_all(con, detectors=[*all_detectors(),
-EstablishmentOvercountDetector()])` on the real warehouse; measure lift@k and overlap
-against the DOJ labels; **promote into `all_detectors()` only if it shows independent
-lift** (else keep exploratory, like the ring detector). No benchmark numbers are quoted
-until that run — qualitative only.
+Next: **Loop 3** — EIDL↔PPP jobs mismatch, gated on confirming the public COVID-EIDL
+release carries an employee/jobs field (else the mismatch detector can't be built).
 
 The **EIDL-vs-PPP jobs mismatch** detector is deferred to **Loop 3**, pending a check on
 whether EIDL loan-level data is publicly available at the granularity needed to join.

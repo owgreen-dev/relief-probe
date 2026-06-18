@@ -100,12 +100,17 @@ class EstablishmentOvercountDetector(Detector):
             """
         ).fetchall()
 
-        # Bucket loans into (zip, naics-cell). naics_digits truncation is what lets a
-        # 6-digit loan code line up with a coarser ZBP rollup if one was loaded.
+        # Bucket loans into (zip5, naics-cell). Census ZBP keys on the 5-digit ZIP,
+        # but loans.borrower_zip is a MIX of 5-digit ("90240") and ZIP+4
+        # ("92627-3582") in the real data, so we truncate to the first 5 digits to
+        # join (otherwise every ZIP+4 loan silently fails to match). naics_digits
+        # truncation lets a 6-digit loan code line up with a coarser ZBP rollup if one
+        # was loaded.
         cells: dict[tuple[str, str], list[str]] = defaultdict(list)
         for loan_number, zip_code, naics_code in loans:
+            zip5 = zip_code[:5]
             cell = naics_code[: self.naics_digits]
-            cells[(zip_code, cell)].append(str(loan_number))
+            cells[(zip5, cell)].append(str(loan_number))
 
         signals: list[Signal] = []
         for (zip_code, cell), loan_numbers in cells.items():

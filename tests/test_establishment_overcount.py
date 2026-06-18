@@ -54,6 +54,24 @@ def test_overcount_cell_fires_on_all_its_loans(tmp_path):
     assert len({s.score for s in sigs}) == 1
 
 
+def test_zip_plus_four_loans_match_five_digit_establishments(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    # Real data mixes 5-digit and ZIP+4 borrower_zip; ZBP keys on 5-digit. Loans must
+    # truncate to the first 5 digits to join (else every ZIP+4 loan misses).
+    _insert_loans(
+        con,
+        [("Z4-1", "29150-1234", "325510"), ("Z4-2", "29150-9999", "325510"),
+         ("Z5-1", "29150", "325510"), ("Z5-2", "29150", "325510")],
+    )
+    _insert_est(con, [("29150", "325510", 1)])  # 4 loans / 1 establishment = 4x
+
+    sigs = EstablishmentOvercountDetector().run(con)
+    assert {s.loan_number for s in sigs} == {"Z4-1", "Z4-2", "Z5-1", "Z5-2"}
+    ev = sigs[0].evidence
+    assert ev["zip"] == "29150"  # normalized to 5 digits
+    assert ev["ppp_loan_count"] == 4
+
+
 def test_cell_with_ample_establishments_stays_quiet(tmp_path):
     con = connect(tmp_path / "wh.duckdb")
     # Cell (75001, 541110): 2 loans, 50 establishments -> ratio 0.04 < 4 -> quiet.

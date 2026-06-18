@@ -20,9 +20,12 @@ promotes any that show it:
   fabricated/reverse-engineered loan amount (Loop 1); validated WEAK (flags ~13%
   of the slice, ~0 lift through k=1000), so it stays out of the composite.
 * ``establishment_overcount`` — Census ZBP density signal (Loop 2): more PPP loans
-  in a ZIP x NAICS cell than there are business establishments there. Built + tested
-  but NOT yet validated against the real warehouse; held exploratory until a human
-  measures real-data lift and (if it shows independent lift) promotes it (SIGN-010).
+  in a ZIP x NAICS cell than there are business establishments there. VALIDATED on the
+  real warehouse: it has weak *standalone* independent lift (≈18x@500, recall ~1.8%
+  @5000; Jaccard <0.01 vs the other detectors), BUT promoting it does NOT improve the
+  composite (the few prosecuted loans it catches are already caught at those ranks;
+  +1 hit @2000, otherwise identical), so it stays exploratory. Needs a 5-digit ZIP
+  truncation to join real ZIP+4 loans (fixed in the detector).
 
 Kept for investigation/evidence and opt-in scoring; not in the headline ranking.
 
