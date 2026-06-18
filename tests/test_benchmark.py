@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from relief_probe.benchmark.core import (
     baseline_rankings,
+    bootstrap_lift_cis,
     labeled_fraud_loans,
     ranking_metrics,
     run_benchmark,
@@ -99,6 +100,36 @@ def test_run_benchmark_includes_baselines(tmp_path):
         assert set(metrics[1]) == {"hits", "precision", "lift", "recall"}
     # The planted high-$/job labeled loan tops the amount_per_job baseline.
     assert res["baselines"]["amount_per_job"]["metrics"][1]["hits"] == 1
+
+
+def test_bootstrap_lift_cis_shape_and_bracketing():
+    # 100 ranked loans, the first 10 are positives -> precision@10 = 1.0, lift = N.
+    ranked = [f"L{i}" for i in range(100)]
+    positives = {f"L{i}" for i in range(10)}
+    base_rate = 0.10  # 10 positives / 100 loans
+    ci = bootstrap_lift_cis(
+        ranked, positives, base_rate, ks=(10, 50), n_boot=500, seed=1
+    )
+    assert set(ci) == {10, 50}
+    assert set(ci[10]) == {"hits_ci", "lift_ci"}
+    lo, hi = ci[10]["lift_ci"]
+    assert lo <= hi
+    # Point lift@10 = (10/10)/0.10 = 10x should sit inside the interval.
+    assert lo <= 10.0 <= hi
+    # CIs are reproducible under a fixed seed.
+    ci2 = bootstrap_lift_cis(
+        ranked, positives, base_rate, ks=(10, 50), n_boot=500, seed=1
+    )
+    assert ci2[10]["lift_ci"] == ci[10]["lift_ci"]
+
+
+def test_bootstrap_lift_cis_one_hit_lower_bound_is_zero():
+    # A single positive at the very top: a Poisson(1) resample drops it ~37% of the
+    # time, so the 95% hits CI must reach 0 — the honest "rests on one loan" signal.
+    ranked = [f"L{i}" for i in range(100)]
+    positives = {"L0"}
+    ci = bootstrap_lift_cis(ranked, positives, 0.01, ks=(100,), n_boot=1000, seed=0)
+    assert ci[100]["hits_ci"][0] == 0.0
 
 
 def test_run_benchmark_slice_restricts_evaluation(tmp_path):

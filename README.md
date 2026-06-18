@@ -45,16 +45,25 @@ rate (raw hit counts in parens):
 | Trivial: `ORDER BY amount/jobs DESC` (one line) | 29.7× (1) | 11.9× (2) | 14.8× (5) |
 | Dumb: `ORDER BY loan_amount DESC` | 0× (0) | 0× (0) | 5.9× (2) |
 
+Composite lift with **95% bootstrap CIs** (2,000-resample Poisson bootstrap, the honest
+error bars on those single-digit hits): **@100 0.0–89.1×**, **@500 5.9–47.7×**,
+**@1000 3.0–26.7×**, @5000 4.2–12.5×.
+
 What this honestly shows:
+- **The k=100 number is noise; the k≥500 signal is real.** The eye-catching 29.7×@100
+  rests on a *single* loan — its 95% CI (0–89×) includes zero, so it is not
+  distinguishable from chance. But from k=500 outward the CIs clear 1× decisively
+  (5.9–47.7× at k=500), so the concentration of prosecuted loans near the top is a
+  genuine effect, not an artifact. **Trust the @500–5000 band, not the headline @100.**
 - **The core signal is real.** Dollars-per-reported-job decisively beats raw loan
   amount (which finds *nothing* in the top 500). Normalizing by jobs is doing the work.
 - **The fancy stats add only a little.** The cohort-z/FDR composite clearly beats a
   one-line `amount/jobs` sort at k=500 (4 hits vs 2) but the trivial sort edges it back
   at k=1000 (5 vs 4). The methodology is sound hygiene, but most of the signal is the
   ratio, not the machinery.
-- **Estimates are noisy.** These rest on **single-digit hit counts**, so treat the lift
-  as a rough lower bound, not a precise figure. Labels are a small, **prosecution-biased
-  PU sample** → this is **recall-on-known-fraud, not a fraud rate**.
+- **Estimates are noisy — and now quantified.** The bootstrap CIs above replace
+  hand-waving about "single-digit hit counts" with actual intervals. Labels are a small,
+  **prosecution-biased PU sample** → this is **recall-on-known-fraud, not a fraud rate**.
 - **No train/test leakage.** The detectors are **unsupervised** — thresholds come from
   program rules and statistics, not from fitting to the 325 labels — so nothing is
   trained on the answers, and the labels are prosecutions dated *years after* the loans.

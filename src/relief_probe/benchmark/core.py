@@ -16,11 +16,13 @@ beats an unmeasured claim.
 from __future__ import annotations
 
 import duckdb
+import numpy as np
 
 from relief_probe.detectors.runner import run_all
 from relief_probe.scoring import composite_ranking
 
 DEFAULT_KS: tuple[int, ...] = (100, 250, 500, 1000, 2000, 5000)
+DEFAULT_N_BOOT = 2000
 
 
 def labeled_fraud_loans(con: duckdb.DuckDBPyConnection) -> set[str]:
@@ -85,6 +87,70 @@ def ranking_metrics(
     return out
 
 
+def bootstrap_lift_cis(
+    ranked: list[str],
+    positives: set[str],
+    base_rate: float,
+    ks: tuple[int, ...] = DEFAULT_KS,
+    *,
+    n_boot: int = DEFAULT_N_BOOT,
+    seed: int = 0,
+    alpha: float = 0.05,
+) -> dict:
+    """Percentile bootstrap confidence intervals for hits@k and lift@k.
+
+    The point estimates rest on single-digit hit counts, so a bare "29.7x" hides
+    enormous sampling noise (at k=100 it is literally one loan). We quantify that
+    with a **Poisson bootstrap**: under the nonparametric bootstrap each loan's
+    resample multiplicity is ~Binomial(N, 1/N) ≈ Poisson(1). Since only flagged
+    loans (score > 0) can occupy the top k, resampling the whole population reduces
+    to drawing a Poisson(1) multiplicity for each loan in ``ranked`` (the flagged,
+    score-descending list) and recomputing how many of the first k resampled slots
+    are positives. The base rate is held at its observed value — its own
+    uncertainty is second order next to the top-k hit variance.
+
+    Returns, per k, ``hits_ci`` and ``lift_ci`` as ``[lo, hi]`` at the central
+    ``1 - alpha`` level. A CI whose lower bound is 0 hits is the honest signal that
+    the point estimate is not distinguishable from "found nothing".
+    """
+    y = np.array([1.0 if ln in positives else 0.0 for ln in ranked])
+    n = y.size
+    rng = np.random.default_rng(seed)
+    lo_q, hi_q = 100 * alpha / 2, 100 * (1 - alpha / 2)
+
+    hits = {k: np.zeros(n_boot) for k in ks}
+    if n:
+        for b in range(n_boot):
+            m = rng.poisson(1.0, size=n)
+            cum = np.cumsum(m)
+            ypos = y * m  # positive copies contributed by each ranked loan
+            for k in ks:
+                idx = int(np.searchsorted(cum, k, side="left"))
+                if idx >= n:  # fewer than k resampled slots exist — count them all
+                    hits[k][b] = ypos.sum()
+                    continue
+                taken = float(ypos[:idx].sum())
+                already = cum[idx - 1] if idx else 0
+                taken += y[idx] * (k - already)  # partial fill from the boundary loan
+                hits[k][b] = taken
+
+    out: dict[int, dict] = {}
+    for k in ks:
+        hs = hits[k]
+        lift = (hs / k) / base_rate if base_rate else np.zeros_like(hs)
+        out[k] = {
+            "hits_ci": [
+                round(float(np.percentile(hs, lo_q)), 1),
+                round(float(np.percentile(hs, hi_q)), 1),
+            ],
+            "lift_ci": [
+                round(float(np.percentile(lift, lo_q)), 2),
+                round(float(np.percentile(lift, hi_q)), 2),
+            ],
+        }
+    return out
+
+
 def _slice_universe(
     con: duckdb.DuckDBPyConnection, min_amount: float | None
 ) -> set[str] | None:
@@ -120,11 +186,13 @@ def run_benchmark(
     ks: tuple[int, ...] = DEFAULT_KS,
     rescore: bool = True,
     min_amount: float | None = 150_000.0,
+    n_boot: int = DEFAULT_N_BOOT,
 ) -> dict:
     """Rank loans by composite score, validate against resolved fraud_cases labels.
 
     ``min_amount`` restricts evaluation to the labelable slice (default: the $150k+
-    disclosure slice). Pass ``None`` to evaluate the whole population.
+    disclosure slice). Pass ``None`` to evaluate the whole population. ``n_boot``
+    sets the bootstrap resamples for the lift@k confidence intervals (0 to skip).
     """
     if rescore:
         run_all(con)
@@ -143,6 +211,11 @@ def run_benchmark(
     full_ranked = [str(x) for x in ranking["loan_number"].tolist()]
     ranked = _restrict(full_ranked, universe)
     overall = ranking_metrics(ranked, positives, base_rate, ks)
+    overall_ci = (
+        bootstrap_lift_cis(ranked, positives, base_rate, ks, n_boot=n_boot)
+        if n_boot
+        else {}
+    )
 
     # Per-detector ablation: rank by each detector's own score in isolation.
     ablation: dict[str, dict] = {}
@@ -190,6 +263,8 @@ def run_benchmark(
         "base_rate": round(base_rate, 6),
         "n_ranked": len(ranked),
         "overall": overall,
+        "overall_ci": overall_ci,
+        "n_boot": n_boot,
         "ablation": ablation,
         "baselines": baselines,
         "full_population": full_population,

@@ -156,7 +156,11 @@ The build is complete and above-median on breadth + engineering + honesty, but t
   Because lift over the full 11.3M is denominator-inflated (same hits, 10× base-rate
   drop), `benchmark` now defaults to the labelable **$150k+ slice** and reports
   full-population recall separately (`--full-population` to override).
-- **H3 — Bootstrap CIs on lift@k.** Stop quoting point estimates on n=1–8 hits.
+- **H3 — Bootstrap CIs on lift@k.** ✅ Done. `bootstrap_lift_cis` (2,000-resample
+  Poisson bootstrap) in `benchmark/core.py`; `benchmark` prints a "lift 95% CI" column.
+  Result confirmed the worry: **@100 lift 29.7× has a 0.0–89.1× CI** (rests on one loan,
+  includes zero), while **k≥500 CIs clear 1×** (@500 5.9–47.7×) — so the real signal is
+  the @500–5000 band, not the headline @100. README updated to say so.
 - **H4 — Measure label precision** on a ~50-row hand-labeled sample → report a number,
   not "high-precision."
 - **H5 — Vision honesty.** ELA hits ~100% on *engineered* synthetic splices → proves
@@ -177,11 +181,11 @@ Also still open: M4.1 learned PU scorer (`ml` extra); real vision data + CNN vs 
 
 ### In progress
 - **Done this session:** H2 full ingest (11.3M loans) + composite hardening
-  (`min_mad` floor, percentile-normalised composite, slice-aware `benchmark`).
-  README headline regenerated on the real full data.
-- **Next up (highest leverage):** H3 bootstrap CIs on lift@k (the estimates still rest
-  on single-digit hits — this matters more than any new data), then H6 (a genuinely
-  independent detector so corroboration isn't two views of the same $/job ratio).
+  (`min_mad` floor, percentile-normalised composite, slice-aware `benchmark`) + **H3
+  bootstrap CIs on lift@k**. README headline regenerated on the real full data.
+- **Next up (highest leverage):** H6 — a genuinely independent detector (duplicate-
+  address rings / lender concentration) so corroboration isn't two views of the same
+  $/job ratio. Then H4 (measure label precision on a hand-labeled sample).
 
 ## Watch-outs
 

@@ -151,21 +151,33 @@ def benchmark(
     )
 
     ks = res["ks"]
+    ci = res.get("overall_ci") or {}
     t = Table(title="Forward lift@k — composite ranking vs DOJ-prosecuted loans")
     t.add_column("k")
     t.add_column("hits", justify="right")
     t.add_column("precision@k", justify="right")
     t.add_column("lift", justify="right")
+    if ci:
+        t.add_column("lift 95% CI", justify="right")
     t.add_column("recall", justify="right")
     for k in ks:
         m = res["overall"][k]
         lift = m["lift"]
-        t.add_row(
+        row = [
             f"{k:,}", str(m["hits"]), f"{m['precision']:.3%}",
             "—" if lift is None else f"{lift:.1f}x",
-            "—" if m["recall"] is None else f"{m['recall']:.1%}",
-        )
+        ]
+        if ci:
+            lo, hi = ci[k]["lift_ci"]
+            row.append(f"{lo:.1f}–{hi:.1f}x")
+        row.append("—" if m["recall"] is None else f"{m['recall']:.1%}")
+        t.add_row(*row)
     console.print(t)
+    if ci:
+        console.print(
+            f"[dim]95% CIs from a {res['n_boot']:,}-resample Poisson bootstrap; a "
+            "lower bound near 0 means the point lift rests on one or two loans.[/]"
+        )
 
     a = Table(title="Per-detector ablation (lift@k in isolation)")
     a.add_column("detector")
