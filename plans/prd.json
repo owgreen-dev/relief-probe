@@ -37,7 +37,8 @@
         "Verification passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Per-loan, no external data. Round numbers + cap-bunching are classic fabrication tells (Benford-adjacent). Keep the cap math consistent with payroll_cap.py. Document the false-positive mode (some legitimate loans are genuinely round / genuinely at the cap)."
     },
     {

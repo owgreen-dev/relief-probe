@@ -59,3 +59,13 @@ SEEDED tmp_path warehouses — never the real data/ warehouse, never invent numb
   `normalize_address` (building-level, strips suites). Returns None if either side is
   blank — note "LLC Inc" normalizes to "" (all-suffix name), so it's unkeyable too.
   Key format: `"<NORM NAME> @ <NORM ADDR>"`. Pure function, no warehouse. 79 tests pass.
+- **L1-002 done** (`amount_anomaly.py` + `tests/test_amount_anomaly.py`). Per-loan,
+  no joins. Two sub-signals, each intensity in [0,1], score = their sum (monotonic):
+  (a) round-number — `cents % (divisor*100) == 0` for $10k/$5k/$1k, weighted 1.0/0.66/
+  0.33 (work in integer cents to dodge float modulo); (b) cap-maximization — implied
+  per-employee (`amount/jobs`, jobs>=1) within `cap_band` (default 5%) BELOW the cap,
+  graded 0 at band-floor → 1 at cap. Caps reused from `detectors/payroll_cap.py`
+  (`FIRST_DRAW_CAP` 20833.33, `FOOD_ACCOMMODATION_CAP` 29166.67; NAICS prefix '72').
+  Strictly-above-cap deliberately scores 0 here (that's payroll_cap_exceedance) — the
+  two don't double-count the band. Evidence lists `signals_fired`, divisor, implied
+  per-employee + cap. 83 tests pass. NOT yet registered (that's L1-004).
