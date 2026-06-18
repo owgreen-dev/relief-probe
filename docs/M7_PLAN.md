@@ -72,6 +72,36 @@ top-end coverage for single-digit dollars (~99.97% saving). That contrast is the
   gate. Tiers 2 (corroboration) and 3 (Opus deep-dive end-to-end) are follow-ups once
   Tier 1 shows real lift.
 
+## Result (Tier 1, built + validated June 2026) — honest negative
+
+Built as planned: `triage/` package, `relief-probe triage --top-k N [--llm] [--gate]
+[--concurrency C]`, two judges behind one interface (deterministic `heuristic_judge`
+baseline + concurrent/robust `LlmJudge` on Haiku 4.5 with strict 0–3 structured output),
+hard cap (2,000), and the validation gate. Deterministic-first/key-gated, 18 tests.
+
+Real `--llm --gate` run on the full 11.3M warehouse / 325 labels (300 leads judged in
+~3.5 min at `--concurrency 10`, 0 fallbacks; logs in `data/triage_runs/`):
+
+| k | composite lift | triage (Haiku) lift | hits |
+| --- | --- | --- | --- |
+| 25 | 356.4× | 237.6× | 3 → 2 |
+| 50 | 178.2× | 118.8× | 3 → 2 |
+| 100 | 89.1× | 89.1× | 3 → 3 |
+| 250 | 35.6× | 35.6× | 3 → 3 |
+
+**No lift; gate `regressed` by exactly one loan** (3→2 hits at k=25/50, unchanged at
+k≥100) — a single-loan swing inside the H3 bootstrap noise. The semantic-plausibility
+re-rank does not concentrate the *prosecuted* labels better than the composite: the
+composite already nails the top, the LLM marks many loans `egregious` (so the uniform
+blend can't discriminate), and some prosecuted loans look *plausible* to it. The judge's
+per-loan calls are sensible; they just don't align with what got charged. Caveats both
+ways: PU labels can't reward fraud the DOJ never charged, and the blend is coarse. **Kept
+built + opt-in, NOT promoted** — same discipline as every exploratory detector.
+
+Productive follow-ups (none promote Tier 1 as-is): **Tier 2** press-release corroboration
+(also lifts label quality, H4); reframe Tier 1 as an **explanation/triage-narrowing** aid
+(label-alignment not required); **H7** temporal holdout before any label-aware tuning.
+
 ## Sources
 
 - FrugalGPT — arXiv 2305.05176
