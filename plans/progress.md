@@ -52,4 +52,10 @@ SEEDED tmp_path warehouses — never touch the real data/ warehouse, never inven
 
 ## Learnings (append as you go)
 
-- (none yet for H6)
+- H6-001 done: `detectors/_address.py::normalize_address(address, city, state, zip)`
+  → canonical building-level key (UPPER, punctuation→space, USPS suffix abbrev,
+  unit/suite/#/APT stripped). Key = `street | city | state | zip5`. Returns None for
+  blank/sparse street so unkeyable loans are EXCLUDED from ring grouping. Tests in
+  tests/test_address.py (equivalence classes, distinct buildings, None cases, purity).
+- Ruff line-length is 90 — long test tuples must wrap; collapsed a 96-char `for` into
+  a multi-line `variants` tuple to satisfy E501.

@@ -20,7 +20,8 @@
         "Verification passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-17",
       "notes": "Pure string function, its own tested module. Unit-stripping is a deliberate design choice (building-level grouping) — document it. No external deps; plain Python/re."
     },
     {
