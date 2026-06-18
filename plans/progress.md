@@ -51,4 +51,16 @@ promotion is manual after real-data validation. Never touch the real data/ wareh
 
 ## Learnings (append as you go)
 
-- (none yet for Loop 3)
+- L3-001 DONE: `detectors/lender_concentration.py` + `tests/test_lender_concentration.py`
+  (6 tests). Design: group usable loans (originating_lender non-null, jobs>=1,
+  amount>0) by lender; per-lender suspicious_rate = (# loans with amount_per_job >=
+  per-NAICS cap) / loan_count; only lenders with >= min_loans (default 100);
+  `stats.robust_z` the rates across lenders with `min_mad` floor; flag EVERY loan of a
+  lender with z >= min_z (default 3.0). Score = lender's robust-z (one value per book).
+  Reused `payroll_cap.FIRST_DRAW_CAP`/`FOOD_ACCOMMODATION_CAP` for the label-free cap.
+- robust_z GOTCHA: raw MAD==0 -> NaN regardless of min_mad. If clean peers all share
+  rate 0 the cross-lender MAD degenerates and nothing fires. Test seeds peers with
+  *varied* small rates (0, 0.1, 0.2) so MAD>0 and BADBANK (0.9) lands in the tail.
+- Label-free proof: tests leave `fraud_cases` EMPTY (connect() creates it) and assert
+  the detector still fires (SIGN-012). Detector never queries any label table.
+- ruff: `zip(...)` needs `strict=True` (B905). Full verify: 115 passed, ruff clean.

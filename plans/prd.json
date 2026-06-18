@@ -21,7 +21,8 @@
         "Verification passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "The point is a LENDER-LEVEL signal: it flags even the individually-clean loans from a structurally-bad book, which per-loan detectors miss. Keep the suspicious predicate label-free and documented; peer-relative robust-z is the anomaly. Avoid raw volume (big banks legitimately have huge volume) — RATE is the metric."
     },
     {
