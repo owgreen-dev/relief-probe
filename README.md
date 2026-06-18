@@ -29,25 +29,29 @@ Output contract: every detector emits `(loan_number, detector_id, score, evidenc
 
 ## Headline result (and an honest baseline check)
 
-Score the **965,122** loans in the public $150k+ slice, rank by composite, and validate
-against **325** DOJ-prosecuted loans entity-resolved from 3,414 enforcement press
-releases (base rate 0.034%). Crucially, we compare the detector machinery against
-**dumb baselines** — because the right question isn't "what lift do I get?" but "do my
-robust-z + FDR + cohort detectors beat a one-line sort?" Lift over base rate (raw hit
-counts in parens):
+The warehouse holds the **full ~11.3M-loan** PPP population (every public FOIA slice).
+All **325** DOJ-prosecuted labels (entity-resolved from 3,414 enforcement releases) fall
+in the public **$150k+ disclosure slice**, so we measure lift on that **965,122-loan**
+labelable slice for an apples-to-apples base rate (0.034%); ranking the whole 11.3M only
+inflates lift via a 10× larger denominator, so full-population **recall** is reported
+separately (7 of 325 in the top 5,000 ≈ 2.1%). Crucially, we compare the detector
+machinery against **dumb baselines** — because the right question isn't "what lift do I
+get?" but "do my robust-z + FDR + cohort detectors beat a one-line sort?" Lift over base
+rate (raw hit counts in parens):
 
 | ranking | lift@100 | lift@500 | lift@1000 |
 | --- | --- | --- | --- |
-| **Composite** (detectors + cohort-z + BH-FDR) | 29.7× (1) | **23.8× (4)** | 14.8× (5) |
+| **Composite** (detectors + cohort-z + BH-FDR, percentile-combined) | 29.7× (1) | **23.8× (4)** | 11.9× (4) |
 | Trivial: `ORDER BY amount/jobs DESC` (one line) | 29.7× (1) | 11.9× (2) | 14.8× (5) |
 | Dumb: `ORDER BY loan_amount DESC` | 0× (0) | 0× (0) | 5.9× (2) |
 
 What this honestly shows:
 - **The core signal is real.** Dollars-per-reported-job decisively beats raw loan
   amount (which finds *nothing* in the top 500). Normalizing by jobs is doing the work.
-- **The fancy stats add only a little.** The cohort-z/FDR composite beats a one-line
-  `amount/jobs` sort mainly at k=500 (4 hits vs 2); elsewhere they tie. The methodology
-  is sound hygiene, but most of the signal is the ratio, not the machinery.
+- **The fancy stats add only a little.** The cohort-z/FDR composite clearly beats a
+  one-line `amount/jobs` sort at k=500 (4 hits vs 2) but the trivial sort edges it back
+  at k=1000 (5 vs 4). The methodology is sound hygiene, but most of the signal is the
+  ratio, not the machinery.
 - **Estimates are noisy.** These rest on **single-digit hit counts**, so treat the lift
   as a rough lower bound, not a precise figure. Labels are a small, **prosecution-biased
   PU sample** → this is **recall-on-known-fraud, not a fraud rate**.

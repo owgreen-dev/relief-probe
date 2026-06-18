@@ -20,6 +20,7 @@ def cohort_robust_z(
     cohort_col: str = "cohort",
     *,
     log: bool = True,
+    min_mad: float = 0.0,
 ) -> pd.Series:
     """Per-cohort robust z-score of ``value_col``, aligned to ``df`` index.
 
@@ -27,11 +28,17 @@ def cohort_robust_z(
     When ``log=True`` the values are ``log1p``-transformed first (the right space
     for right-skewed dollar ratios). Degenerate cohorts (MAD == 0) yield NaN for
     their members, which callers treat as "no signal".
+
+    ``min_mad`` floors the per-cohort dispersion (in the *transformed* units — log
+    space when ``log=True``), so dense near-uniform cohorts cannot manufacture
+    astronomical z-scores from tiny deviations. See ``stats.robust_z``.
     """
     values = df[value_col]
     if log:
         values = np.log1p(values.clip(lower=0))
-    return values.groupby(df[cohort_col]).transform(lambda s: robust_z(s.to_numpy()))
+    return values.groupby(df[cohort_col]).transform(
+        lambda s: robust_z(s.to_numpy(), min_mad=min_mad)
+    )
 
 
 def fdr_flag(

@@ -55,11 +55,22 @@ class NaicsCohortOutlierDetector(Detector):
     )
 
     def __init__(
-        self, *, min_cohort_size: int = 30, fdr: float = 0.01, min_z: float = 3.0
+        self,
+        *,
+        min_cohort_size: int = 30,
+        fdr: float = 0.01,
+        min_z: float = 3.0,
+        min_mad: float = 0.05,
     ) -> None:
         self.min_cohort_size = min_cohort_size
         self.fdr = fdr
         self.min_z = min_z
+        # Floor on per-cohort dispersion in log1p($/job) space. Dense under-$150k
+        # cohorts are near-uniform (MAD ~ 1e-5), which otherwise turns a modest
+        # deviation into a ~30,000-sigma score that swamps the composite. ~0.05 in
+        # log space ≈ a 5% multiplicative spread — below that we don't trust the
+        # scale estimate. Well-dispersed cohorts are unaffected.
+        self.min_mad = min_mad
 
     def run(self, con: duckdb.DuckDBPyConnection) -> list[Signal]:
         df = con.execute(
@@ -84,7 +95,9 @@ class NaicsCohortOutlierDetector(Detector):
             return []
 
         df["score"] = (
-            cohort_robust_z(df, "amount_per_job", log=True).clip(lower=0).fillna(0.0)
+            cohort_robust_z(df, "amount_per_job", log=True, min_mad=self.min_mad)
+            .clip(lower=0)
+            .fillna(0.0)
         )
         df["cohort_median"] = df.groupby("cohort")["amount_per_job"].transform("median")
         df = fdr_flag(df, "score", fdr=self.fdr, min_z=self.min_z)

@@ -114,15 +114,26 @@ def vision_score(
 
 
 @app.command()
-def benchmark() -> None:
+def benchmark(
+    full_population: bool = typer.Option(
+        False,
+        "--full-population",
+        help="Evaluate lift over all ~11.3M loans instead of the labelable $150k+ "
+        "slice. Inflates lift (10x bigger haystack, same hits) — slice is the "
+        "honest default.",
+    ),
+) -> None:
     """Forward PU validation: how strongly prosecuted loans rank at the top.
 
     Runs all detectors, ranks loans by composite score, and reports precision@k /
     lift / recall@k against the resolved `fraud_cases` labels, with a per-detector
-    ablation. Needs `ingest`, `fetch-labels`, and `resolve-labels` first.
+    ablation. By default lift is measured on the **$150k+ disclosure slice** where
+    the labels live (apples-to-apples base rate); full-population recall is shown
+    separately. Needs `ingest`, `fetch-labels`, and `resolve-labels` first.
     """
     from relief_probe.benchmark import run_benchmark
 
+    min_amount = None if full_population else 150_000.0
     with connect() as con:
         n_labels = con.execute("SELECT COUNT(*) FROM fraud_cases").fetchone()[0]
         if n_labels == 0:
@@ -131,10 +142,10 @@ def benchmark() -> None:
             )
             raise typer.Exit(code=1)
         console.print("Scoring + benchmarking …")
-        res = run_benchmark(con)
+        res = run_benchmark(con, min_amount=min_amount)
 
     console.print(
-        f"Population [bold]{res['population']:,}[/] loans · "
+        f"Slice [bold]{res['slice']}[/] · [bold]{res['population']:,}[/] loans · "
         f"[bold]{res['n_labeled_fraud']}[/] prosecuted (base rate "
         f"{res['base_rate']:.4%}) · {res['n_ranked']:,} flagged & ranked."
     )
@@ -187,9 +198,19 @@ def benchmark() -> None:
         b.add_row(*_lift_row(name, info["metrics"]))
     console.print(b)
 
+    # Full-population recall, reported separately so the slice never hides labels.
+    fp = res["full_population"]
+    fp_k = ks[-1]
+    fp_m = fp["metrics"][fp_k]
+    console.print(
+        f"[dim]Full population: of {fp['n_labeled_fraud']} resolved labels across "
+        f"all {fp['population']:,} loans, the composite surfaces "
+        f"{fp_m['hits']} in the top {fp_k:,} (recall "
+        f"{fp_m['recall']:.1%}).[/]"
+    )
     console.print(
         "[dim]Recall-on-known-fraud, not a fraud rate: labels are a small, "
-        "prosecution-biased PU sample resolved to the $150k+ slice. "
+        "prosecution-biased PU sample resolved mostly to the $150k+ slice. "
         "See RESPONSIBLE_USE.md.[/]"
     )
 

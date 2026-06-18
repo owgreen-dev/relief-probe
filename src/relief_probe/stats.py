@@ -13,19 +13,27 @@ from scipy import stats
 MAD_TO_SIGMA = 0.6744897501960817
 
 
-def robust_z(x: np.ndarray) -> np.ndarray:
+def robust_z(x: np.ndarray, *, min_mad: float = 0.0) -> np.ndarray:
     """One-sample robust z-score via median / MAD.
 
     ``z = 0.6745 * (x - median) / MAD``. Returns NaN where MAD == 0 (a
     degenerate cohort where a majority share the same value — no estimable
     dispersion), which callers treat as "no signal" rather than an error.
+
+    ``min_mad`` floors the dispersion estimate (in the same units as ``x``). A
+    *near*-degenerate cohort — almost every value identical, MAD ~ 1e-5 but not
+    exactly 0 — otherwise turns a modest deviation into an absurd z (tens of
+    thousands of sigma), which then dominates any downstream ranking. Flooring
+    MAD says "we don't believe dispersion is reliably tighter than this," capping
+    such artifacts while leaving well-dispersed cohorts untouched. Truly
+    degenerate cohorts (raw MAD == 0) still yield NaN regardless of the floor.
     """
     x = np.asarray(x, dtype=float)
     med = np.nanmedian(x)
     mad = np.nanmedian(np.abs(x - med))
     if mad == 0 or np.isnan(mad):
         return np.full_like(x, np.nan)
-    return MAD_TO_SIGMA * (x - med) / mad
+    return MAD_TO_SIGMA * (x - med) / max(mad, min_mad)
 
 
 def upper_tail_p(z: np.ndarray) -> np.ndarray:

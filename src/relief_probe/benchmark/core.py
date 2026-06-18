@@ -85,22 +85,63 @@ def ranking_metrics(
     return out
 
 
+def _slice_universe(
+    con: duckdb.DuckDBPyConnection, min_amount: float | None
+) -> set[str] | None:
+    """Loan_numbers in the evaluation slice, or None for the whole population.
+
+    The resolved labels live almost entirely in the public $150k+ disclosure slice,
+    so ranking the full ~11.3M-loan population mechanically deflates the base rate
+    and inflates lift (the same handful of hits over a 10x bigger haystack). The
+    default benchmark therefore restricts evaluation to the *labelable* slice for an
+    apples-to-apples lift; full-population recall is reported separately.
+    """
+    if min_amount is None:
+        return None
+    return {
+        str(r[0])
+        for r in con.execute(
+            "SELECT loan_number FROM loans WHERE current_approval_amount >= ?",
+            [min_amount],
+        ).fetchall()
+    }
+
+
+def _restrict(ranked: list[str], universe: set[str] | None) -> list[str]:
+    """Keep only loans in ``universe`` (order-preserving); identity if None."""
+    if universe is None:
+        return ranked
+    return [ln for ln in ranked if ln in universe]
+
+
 def run_benchmark(
     con: duckdb.DuckDBPyConnection,
     *,
     ks: tuple[int, ...] = DEFAULT_KS,
     rescore: bool = True,
+    min_amount: float | None = 150_000.0,
 ) -> dict:
-    """Rank loans by composite score, validate against resolved fraud_cases labels."""
+    """Rank loans by composite score, validate against resolved fraud_cases labels.
+
+    ``min_amount`` restricts evaluation to the labelable slice (default: the $150k+
+    disclosure slice). Pass ``None`` to evaluate the whole population.
+    """
     if rescore:
         run_all(con)
 
-    population = con.execute("SELECT COUNT(*) FROM loans").fetchone()[0]
-    positives = labeled_fraud_loans(con)
+    universe = _slice_universe(con, min_amount)
+    all_positives = labeled_fraud_loans(con)
+    if universe is None:
+        population = con.execute("SELECT COUNT(*) FROM loans").fetchone()[0]
+        positives = all_positives
+    else:
+        population = len(universe)
+        positives = all_positives & universe
     base_rate = (len(positives) / population) if population else 0.0
 
     ranking = composite_ranking(con)
-    ranked = [str(x) for x in ranking["loan_number"].tolist()]
+    full_ranked = [str(x) for x in ranking["loan_number"].tolist()]
+    ranked = _restrict(full_ranked, universe)
     overall = ranking_metrics(ranked, positives, base_rate, ks)
 
     # Per-detector ablation: rank by each detector's own score in isolation.
@@ -108,14 +149,17 @@ def run_benchmark(
     for (det,) in con.execute(
         "SELECT DISTINCT detector_id FROM signals"
     ).fetchall():
-        det_ranked = [
-            str(r[0])
-            for r in con.execute(
-                "SELECT loan_number FROM signals WHERE detector_id = ? "
-                "ORDER BY score DESC",
-                [det],
-            ).fetchall()
-        ]
+        det_ranked = _restrict(
+            [
+                str(r[0])
+                for r in con.execute(
+                    "SELECT loan_number FROM signals WHERE detector_id = ? "
+                    "ORDER BY score DESC",
+                    [det],
+                ).fetchall()
+            ],
+            universe,
+        )
         ablation[det] = {
             "n_flagged": len(det_ranked),
             "metrics": ranking_metrics(det_ranked, positives, base_rate, ks),
@@ -125,11 +169,22 @@ def run_benchmark(
     baselines: dict[str, dict] = {}
     for name, ranked_baseline in baseline_rankings(con).items():
         baselines[name] = {
-            "metrics": ranking_metrics(ranked_baseline, positives, base_rate, ks)
+            "metrics": ranking_metrics(
+                _restrict(ranked_baseline, universe), positives, base_rate, ks
+            )
         }
+
+    # Full-population recall (denominator = ALL resolved labels), reported separately
+    # so the slice restriction never hides labels that surface outside the slice.
+    full_population = {
+        "population": con.execute("SELECT COUNT(*) FROM loans").fetchone()[0],
+        "n_labeled_fraud": len(all_positives),
+        "metrics": ranking_metrics(full_ranked, all_positives, 0.0, ks),
+    }
 
     return {
         "ks": list(ks),
+        "slice": "all" if min_amount is None else f">=${int(min_amount):,}",
         "population": population,
         "n_labeled_fraud": len(positives),
         "base_rate": round(base_rate, 6),
@@ -137,4 +192,5 @@ def run_benchmark(
         "overall": overall,
         "ablation": ablation,
         "baselines": baselines,
+        "full_population": full_population,
     }

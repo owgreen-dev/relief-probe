@@ -140,9 +140,22 @@ The build is complete and above-median on breadth + engineering + honesty, but t
   So $/job is the real signal (beats raw amount), but the fancy stats add little.
   **Fix:** build baseline rankings into `benchmark` + CLI, and put the honest
   comparison in the README — showing you stress-tested your own method is the senior move.
-- **H2 — Ingest `under_150k`/`all` (~8 GB).** 10× more loans → more labels → hit counts
-  in the dozens, so lift stops resting on one loan. Highest-leverage rigor fix.
-  (After ingest: re-run `score` + `resolve-labels` + `benchmark` on the full set.)
+- **H2 — Ingest `under_150k`/`all` (~8 GB).** ✅ Done — warehouse is now the full
+  **11,365,188** loans. Two findings, both honest negatives:
+  1. **No new labels.** All **325** distinct prosecuted loans still fall in the $150k+
+     slice (0 under $150k) — prosecutions concentrate in large loans, so 10× more
+     haystack added zero needles. Hit counts stayed single-digit; H3 (bootstrap CIs)
+     is the real fix for noisy lift, not more loans.
+  2. **It broke + then fixed the composite.** Re-scoring on the dense under-$150k
+     cohorts exposed two bugs (now fixed): (a) near-zero-MAD cohorts produced absurd
+     ~38,950-σ z-scores → added a `min_mad` floor in `stats.robust_z`; (b) the
+     composite combined *raw* incomparable detector scales (naics z up to ~39k vs
+     payroll ratio ≤313), so naics swamped everything → composite now percentile-
+     normalises per detector (`CUME_DIST`) before `max + corroboration`. Composite
+     lift recovered from **0× → 29.7×@100 / 23.8×@500** on the slice.
+  Because lift over the full 11.3M is denominator-inflated (same hits, 10× base-rate
+  drop), `benchmark` now defaults to the labelable **$150k+ slice** and reports
+  full-population recall separately (`--full-population` to override).
 - **H3 — Bootstrap CIs on lift@k.** Stop quoting point estimates on n=1–8 hits.
 - **H4 — Measure label precision** on a ~50-row hand-labeled sample → report a number,
   not "high-precision."
@@ -163,9 +176,12 @@ The build is complete and above-median on breadth + engineering + honesty, but t
 Also still open: M4.1 learned PU scorer (`ml` extra); real vision data + CNN vs ELA.
 
 ### In progress
-- **Loop (branch `ralph/hardening`):** H1 baseline machinery + H5 vision honesty.
-- **Background:** H2 full-slice ingest.
-- **Finalize (manual, on real full data):** regenerate the README baseline numbers.
+- **Done this session:** H2 full ingest (11.3M loans) + composite hardening
+  (`min_mad` floor, percentile-normalised composite, slice-aware `benchmark`).
+  README headline regenerated on the real full data.
+- **Next up (highest leverage):** H3 bootstrap CIs on lift@k (the estimates still rest
+  on single-digit hits — this matters more than any new data), then H6 (a genuinely
+  independent detector so corroboration isn't two views of the same $/job ratio).
 
 ## Watch-outs
 

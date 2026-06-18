@@ -54,7 +54,8 @@ def test_labeled_fraud_loans(tmp_path):
 def test_run_benchmark_ranks_labeled_loan_at_top(tmp_path):
     con = connect(tmp_path / "wh.duckdb")
     _seed(con)
-    res = run_benchmark(con, ks=(1, 5))
+    # min_amount=None: the synthetic loans are sub-$150k, so evaluate whole pop.
+    res = run_benchmark(con, ks=(1, 5), min_amount=None)
     assert res["population"] == 41
     assert res["n_labeled_fraud"] == 1
     # The planted fraud loan is the rank-1 lead -> hit at k=1, big lift.
@@ -89,7 +90,7 @@ def test_baseline_rankings_ordering(tmp_path):
 def test_run_benchmark_includes_baselines(tmp_path):
     con = connect(tmp_path / "wh.duckdb")
     _seed(con)
-    res = run_benchmark(con, ks=(1, 5))
+    res = run_benchmark(con, ks=(1, 5), min_amount=None)
     assert set(res["baselines"]) == {"amount_per_job", "raw_amount"}
     for name in ("amount_per_job", "raw_amount"):
         metrics = res["baselines"][name]["metrics"]
@@ -98,3 +99,18 @@ def test_run_benchmark_includes_baselines(tmp_path):
         assert set(metrics[1]) == {"hits", "precision", "lift", "recall"}
     # The planted high-$/job labeled loan tops the amount_per_job baseline.
     assert res["baselines"]["amount_per_job"]["metrics"][1]["hits"] == 1
+
+
+def test_run_benchmark_slice_restricts_evaluation(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    _seed(con)
+    # FRAUD-1 is the only loan >= $150k; the 40 normals are sub-slice.
+    res = run_benchmark(con, ks=(1, 5), min_amount=150_000.0)
+    assert res["slice"] == ">=$150,000"
+    assert res["population"] == 1  # only FRAUD-1 is in the labelable slice
+    assert res["n_labeled_fraud"] == 1
+    # Full-population recall is reported against ALL labels over ALL loans.
+    fp = res["full_population"]
+    assert fp["population"] == 41
+    assert fp["n_labeled_fraud"] == 1
+    assert fp["metrics"][1]["hits"] == 1
