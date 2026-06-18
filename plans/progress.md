@@ -1,108 +1,59 @@
 # Ralph Progress Log
 
-Milestone: Loop 1 — research-driven detectors: amount_anomaly + multiple_funded_loans
-(`ralph/loop1-amount-entity-detectors`)
+Milestone: Loop 2 — Census establishment-overcount detector
+(`ralph/loop2-establishment-overcount`)
 Verify: `uv run --extra vision pytest && uvx ruff check .`
 
-## This milestone (Loop 1)
+## This milestone (Loop 2)
 
-Build TWO new public-data detectors that target patterns DIFFERENT from dollars-per-job:
-- **amount_anomaly** — round-number + payroll-cap-maximization ("bunching") tells of a
-  fabricated/reverse-engineered loan amount. No external data.
-- **multiple_funded_loans** — entity resolution (normalize_name + normalize_address) →
-  borrowers with more funded loans than the 1-per-draw rule allows (PPP/PPS). GAO-validated.
+Build the **establishment_overcount** detector (Griffin/Kruger: PPP loans frequently
+exceed the number of business establishments that exist in an industry-geography). Needs
+a NEW public-data join: Census **ZIP Business Patterns (ZBP)** — establishment counts by
+ZIP x NAICS — joined directly on `loans.borrower_zip` (no zip->county crosswalk).
+Features L2-001..L2-005 in plans/prd.json.
 
-CRITICAL: both register in `registry.exploratory_detectors()`, NOT `all_detectors()`.
-They are NOT in the default composite. Promotion is a manual decision after real-data
-validation (the H6 lesson). Features L1-001..L1-005 in plans/prd.json. Pure code + TDD on
-SEEDED tmp_path warehouses — never the real data/ warehouse, never invent numbers.
+CRITICAL: the detector registers in `registry.exploratory_detectors()`, NOT
+`all_detectors()` (SIGN-010). NO network/downloads (SIGN-011) — loaders are path-based,
+tested against synthetic CSV fixtures in tmp_path. Never touch the real data/ warehouse
+(SIGN-007). No invented numbers (SIGN-008). The real Census download + ingest + lift
+validation + promotion is a MANUAL post-loop step.
 
 ## Codebase Patterns
 
-- Entity key is `loan_number` (string), never NPI.
-- Warehouse: `relief_probe.warehouse.connect(path)` opens+inits a DuckDB file.
-  Tables: `loans`, `fraud_cases`, `press_releases`, `signals`. Loans have
-  borrower_name/address/city/state/zip, naics_code, jobs_reported,
-  current_approval_amount, processing_method ('PPP'=first draw, 'PPS'=second draw).
-- Detectors: subclass `detectors/base.py::Detector`, set `detector_id` + `summary`,
-  implement `run(con) -> list[Signal]` (READ-ONLY). New detectors → `exploratory_detectors()`.
-- REUSE: `detectors/_address.py::normalize_address`, `labels/resolve.py::normalize_name`,
-  `payroll_cap.py` per-employee cap constants ($20,833 general; $29,167 for NAICS '72*').
-- Composite (in `relief_probe.scoring`) = `MAX(percentile(score)) + 0.5*(n_signals-1)`;
-  percentile-normalised per detector (CUME_DIST). Robust stats: `stats.robust_z(x, min_mad=)`.
-- `run_all(con, detectors=None)` defaults to `all_detectors()`; pass an explicit list to
-  include exploratory detectors for ad-hoc scoring.
-- Style: `from __future__ import annotations`, typed, docstrings, ruff line-length 90
-  (E,F,I,UP,B). Commit ONE feature per iteration. Mirror tests/test_detectors.py.
+- Warehouse: `warehouse.connect(path)` opens+inits DuckDB; schema in
+  `warehouse/db.py::SCHEMA_SQL` (CREATE TABLE IF NOT EXISTS — add `establishments` there).
+  Tables: loans, fraud_cases, press_releases, signals (+ new: establishments).
+- Loaders (ingest/loader.py): read CSV with `all_varchar=true` + `TRY_CAST` (blanks ->
+  NULL), idempotent `INSERT OR IGNORE`. Sources registered in ingest/sources.py (don't
+  hardcode fragile URLs in the loader; take a local path).
+- Detectors: subclass `detectors/base.py::Detector`, `run(con) -> list[Signal]`,
+  READ-ONLY, return [] gracefully when their input table is empty/missing. New detectors
+  -> `exploratory_detectors()`. Composite = `MAX(percentile(score)) + 0.5*(n-1)`.
+- Production composite now = naics_cohort_outlier + payroll_cap_exceedance +
+  multiple_funded_loans (Loop 1 promoted multiple_funded after real-data validation).
+- `run_all(con, detectors=None)` defaults to all_detectors(); pass an explicit list for
+  exploratory detectors.
+- loans geo fields: borrower_zip, project_zip, project_county_name, naics_code (6-digit).
+- Style: `from __future__ import annotations`, typed, docstrings, ruff line-length 90.
+  Commit ONE feature per iteration. CLI uses typer; test with typer.testing.CliRunner.
 
 ## Environment (IMPORTANT — do not regress)
 
-- `uv run pytest` self-provisions via `[dependency-groups] dev`; if a different project's
-  venv leaks onto PATH it can mis-resolve — `uv run` uses the project `.venv`.
+- `uv run pytest` self-provisions via `[dependency-groups] dev`.
 - `uvx ruff check .` is the lint command (`uv run ruff` is NOT installed).
 - The `agent` extra stays OPT-IN; LLM/MCP tests must `pytest.importorskip`.
 
-## Key Files (Loop 1)
+## Key Files (Loop 2)
 
-- NEW: `src/relief_probe/detectors/_entity.py` (entity_key)
-- NEW: `src/relief_probe/detectors/amount_anomaly.py`
-- NEW: `src/relief_probe/detectors/multiple_funded_loans.py`
-- `src/relief_probe/detectors/registry.py` (add both to exploratory_detectors)
-- NEW: `tests/test_entity.py`, `tests/test_amount_anomaly.py`,
-  `tests/test_multiple_funded_loans.py`
-- `README.md` detector catalog, `NEXT_STEPS.md` (qualitative, no numbers)
+- `src/relief_probe/warehouse/db.py` (add `establishments` table)
+- NEW: `src/relief_probe/ingest/establishments.py` (or extend ingest/loader.py)
+- `src/relief_probe/ingest/sources.py` (register the Census ZBP source)
+- NEW: `src/relief_probe/detectors/establishment_overcount.py`
+- `src/relief_probe/detectors/registry.py` (add to exploratory_detectors)
+- `src/relief_probe/cli.py` (add `ingest-establishments PATH`)
+- NEW tests: `tests/test_establishments_loader.py`, `tests/test_establishment_overcount.py`
+- `README.md`, `NEXT_STEPS.md`, `docs/SCHEMA.md` (qualitative, no numbers)
 
 ## Learnings (append as you go)
 
-- **L1-001 done** (`_entity.py` + `tests/test_entity.py`). `entity_key` = `normalize_name`
-  (from `labels/resolve.py`, strips corporate suffixes INC/LLC/THE/AND/OF...) + ` @ ` +
-  `normalize_address` (building-level, strips suites). Returns None if either side is
-  blank — note "LLC Inc" normalizes to "" (all-suffix name), so it's unkeyable too.
-  Key format: `"<NORM NAME> @ <NORM ADDR>"`. Pure function, no warehouse. 79 tests pass.
-- **L1-002 done** (`amount_anomaly.py` + `tests/test_amount_anomaly.py`). Per-loan,
-  no joins. Two sub-signals, each intensity in [0,1], score = their sum (monotonic):
-  (a) round-number — `cents % (divisor*100) == 0` for $10k/$5k/$1k, weighted 1.0/0.66/
-  0.33 (work in integer cents to dodge float modulo); (b) cap-maximization — implied
-  per-employee (`amount/jobs`, jobs>=1) within `cap_band` (default 5%) BELOW the cap,
-  graded 0 at band-floor → 1 at cap. Caps reused from `detectors/payroll_cap.py`
-  (`FIRST_DRAW_CAP` 20833.33, `FOOD_ACCOMMODATION_CAP` 29166.67; NAICS prefix '72').
-  Strictly-above-cap deliberately scores 0 here (that's payroll_cap_exceedance) — the
-  two don't double-count the band. Evidence lists `signals_fired`, divisor, implied
-  per-employee + cap. 83 tests pass. NOT yet registered (that's L1-004).
-- **L1-003 done** (`multiple_funded_loans.py` + `tests/test_multiple_funded_loans.py`).
-  Groups loans by `entity_key` (L1-001), skipping unkeyable (None) entities. Per-entity
-  counts loans per `processing_method` (None kept as its own bucket). Excess over the
-  one-per-draw allowance: `excess = max(sum_draw(max(0,count-1)), n_loans-2)` — so 2
-  same-draw loans OR any 3rd funded loan → excess>=1; legit 1 PPP + 1 PPS → excess 0
-  (quiet). Every loan in a flagged entity emits a Signal; score = float(excess),
-  monotonic in extra-loan count (total_amount in evidence for triage, NOT scoring).
-  Evidence: entity_key, n_loans, excess_loans, per_draw_counts, total_amount,
-  loan_numbers (capped 25). DISTINCT from duplicate_address_ring: that finds many
-  distinct borrowers at one building; this finds ONE resolved borrower across many
-  loans (test_distinct_from_address_ring asserts co-located distinct names stay quiet).
-  89 tests pass. NOT yet registered (that's L1-004).
-- **L1-004 done** (`registry.py` + `tests/test_registry.py`). Added
-  `AmountAnomalyDetector()` and `MultipleFundedLoansDetector()` to
-  `exploratory_detectors()` ONLY; `all_detectors()` untouched (still naics_cohort +
-  payroll_cap). Updated the registry module + function docstrings. `get_detector`
-  resolves both new ids (it already iterates all+exploratory). New test_registry.py
-  asserts: both ids in exploratory & disjoint from prod; prod set unchanged;
-  default `run_all(con)` omits them; explicit `run_all(con, all+exploratory)`
-  includes both counts. GOTCHA: adding to `exploratory_detectors()` broke a
-  pre-existing ring test (`test_composite_corroborates_ring_and_dollar_signals`)
-  because its ringleader loan is a round $1,000,000 → amount_anomaly fires too,
-  making n_signals 4 not 3. Fix: that test now pins the ring detector explicitly
-  (`[*all_detectors(), DuplicateAddressRingDetector()]`) instead of pulling the
-  whole exploratory bucket — keeps its intent and is robust to future exploratory
-  additions. 93 tests pass. Remaining: L1-005 (docs).
-- **L1-005 done** (`README.md` + `NEXT_STEPS.md`, docs only — no code/tests changed).
-  README detector catalog: added an "Exploratory detectors" bullet describing
-  `amount_anomaly` (round-number + cap-bunching; Griffin et al. motivation; distinct
-  from `payroll_cap_exceedance`) and `multiple_funded_loans` (entity resolution →
-  one-per-draw rule; GAO motivation; distinct from `duplicate_address_ring`), each with
-  its honest false-positive mode and the explicit "NOT in the default composite, pending
-  real-data validation" framing. NEXT_STEPS.md: new "Loop 1" entry under the M2 detector
-  backlog listing both as built-exploratory with a MANUAL post-loop step (score on real
-  warehouse, measure lift, promote only what shows independent lift — the H6 discipline).
-  NO benchmark/lift numbers anywhere (SIGN-008). Verify: 93 tests pass + ruff clean.
-  ALL Loop-1 tasks (L1-001..L1-005) now pass.
+- (none yet for Loop 2)

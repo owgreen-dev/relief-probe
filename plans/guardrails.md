@@ -74,6 +74,14 @@ its honesty.
 will fail to spawn. The full verify is `uv run --extra vision pytest && uvx ruff check .`.
 **Reason:** Matches the actual toolchain; avoids spurious verification failures.
 
+### SIGN-011: No network / no downloads in the loop
+**Trigger:** A feature needs an external data file (e.g. Census ZBP).
+**Instruction:** Do NOT download anything or hit the network. Write loaders that take a
+LOCAL path; test them against a small SYNTHETIC CSV fixture the test writes to tmp_path.
+Register the real source URL in ingest/sources.py for documentation, but the real
+download + ingest is a manual post-loop step.
+**Reason:** The loop runs headless/offline; real ingests are large and human-run.
+
 ### SIGN-010: New detectors go to exploratory_detectors(), never all_detectors()
 **Trigger:** Registering a brand-new detector.
 **Instruction:** Add it to `registry.exploratory_detectors()` only. Do NOT touch
