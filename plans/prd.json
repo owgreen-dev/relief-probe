@@ -64,7 +64,8 @@
         "Verification passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "Keep it path-based and offline-testable. Mirrors the existing `ingest` command's structure."
     },
     {

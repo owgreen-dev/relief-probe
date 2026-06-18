@@ -468,5 +468,33 @@ def ingest(
     )
 
 
+@app.command(name="ingest-establishments")
+def ingest_establishments(
+    path: str = typer.Argument(
+        ..., help="Local path to a Census ZIP Business Patterns (ZBP) CSV."
+    ),
+) -> None:
+    """Load a LOCAL Census ZBP CSV into the `establishments` table.
+
+    Establishment counts by ZIP x NAICS feed the (exploratory) `establishment_overcount`
+    detector. This command does NOT download — the real ZBP file is a manual public
+    download (see ingest/sources.py: ZBP_LANDING_URL); it takes a local path only.
+    """
+    from pathlib import Path
+
+    from relief_probe.ingest.establishments import load_zbp_csv
+
+    csv_path = Path(path)
+    if not csv_path.exists():
+        console.print(f"[yellow]No such file[/] {path}")
+        raise typer.Exit(code=1)
+    console.print(f"[bold]Loading Census ZBP establishments[/] from {csv_path} …")
+    with connect() as con:
+        inserted = load_zbp_csv(con, csv_path)
+    console.print(
+        f"[green]Loaded {inserted:,} establishment rows[/] into `establishments`."
+    )
+
+
 if __name__ == "__main__":
     app()

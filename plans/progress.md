@@ -88,3 +88,13 @@ validation + promotion is a MANUAL post-loop step.
   resolves, default run_all OMITS it, explicit run_all(detectors=[*all,*expl]) on a
   seeded (loans + establishments) warehouse INCLUDES its count. Seed helper fires
   cell (29150 x 325510): 6 loans / 1 establishment -> ratio 6 >= 4. 110 tests pass.
+- L2-004 (CLI `ingest-establishments PATH`): added the command to cli.py right after
+  `ingest`. Path-based + offline (no download); resolves a local CSV, calls
+  load_zbp_csv via `with connect() as con`, prints the inserted row count, and exits 1
+  on a missing file. Test pattern for CLI-vs-warehouse: monkeypatch
+  `relief_probe.cli.connect` to `lambda: connect(tmp_path / "wh.duckdb")` (cli.py binds
+  `connect` into its own namespace via `from relief_probe.warehouse import connect`, so
+  patch it on `cli`, NOT on config.warehouse_path). Rich word-wraps output, so collapse
+  whitespace before asserting. tests/test_cli_ingest_establishments.py covers the
+  loaded-count happy path (rows land in the tmp warehouse) + missing-file exit code.
+  108 tests pass.
