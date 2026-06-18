@@ -74,6 +74,14 @@ its honesty.
 will fail to spawn. The full verify is `uv run --extra vision pytest && uvx ruff check .`.
 **Reason:** Matches the actual toolchain; avoids spurious verification failures.
 
+### SIGN-010: New detectors go to exploratory_detectors(), never all_detectors()
+**Trigger:** Registering a brand-new detector.
+**Instruction:** Add it to `registry.exploratory_detectors()` only. Do NOT touch
+`all_detectors()` (the default composite). Promotion into the composite is a manual
+human decision made AFTER validating real-data lift against the DOJ labels.
+**Reason:** The H6 ring detector looked great on synthetic data but had zero real-data
+lift; auto-adding unvalidated detectors to the composite dilutes the headline benchmark.
+
 <!-- Example format:
 ### SIGN-XXX: [Descriptive Name]
 **Trigger:** [When this sign applies]
