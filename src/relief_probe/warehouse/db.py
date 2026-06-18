@@ -119,6 +119,22 @@ CREATE TABLE IF NOT EXISTS press_releases (
     body           VARCHAR                 -- cleaned release text
 );
 
+-- Census ZIP Business Patterns (ZBP): how many business establishments actually
+-- exist in a given ZIP x NAICS cell. Joined directly on loans.borrower_zip (no
+-- zip->county crosswalk). Powers the establishment_overcount detector: PPP loan
+-- DENSITY per industry-geography that far exceeds the real establishment count is a
+-- fraud signal (Griffin, Kruger & Mahajan, J.Finance 2023). Raw ZBP headers map as:
+--   zip            <- zip   (5-digit ZIP code)
+--   naics          <- naics (industry code; ZBP publishes 2/4/6-digit rollups)
+--   establishments <- est   (number of establishments in that ZIP x NAICS cell)
+-- (zip, naics) is the natural key so re-loads are idempotent (INSERT OR IGNORE).
+CREATE TABLE IF NOT EXISTS establishments (
+    zip            VARCHAR,
+    naics          VARCHAR,
+    establishments INTEGER,
+    PRIMARY KEY (zip, naics)
+);
+
 -- Output contract: every detector emits rows here.
 -- evidence_json is a JSON string describing why the loan was flagged.
 CREATE TABLE IF NOT EXISTS signals (

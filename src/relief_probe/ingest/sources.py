@@ -25,3 +25,16 @@ SLICES: dict[str, tuple[str, ...]] = {
 }
 
 DEFAULT_SLICE = "150k_plus"
+
+# Census ZIP Business Patterns (ZBP) — establishment counts by ZIP x NAICS.
+# Used to detect PPP loan over-density vs the real number of businesses in a cell.
+# The annual ZBP files live under the Census "datasets" tree; the canonical landing
+# page is documented here rather than hardcoded into the loader, because the per-year
+# file URLs change and the real download + ingest is a MANUAL post-loop step. The
+# loader (ingest/establishments.load_zbp_csv) takes a LOCAL path — no network.
+ZBP_LANDING_URL = "https://www.census.gov/programs-surveys/cbp/data/datasets.html"
+ZBP_DATASET_NOTE = (
+    "Census ZIP Business Patterns (ZBP): establishments by ZIP x NAICS. "
+    "Pick a vintage close to (but predating) the PPP program; note the ZBP vintage "
+    "predates 2020 growth, a known false-positive mode. Verified as-of June 2026."
+)

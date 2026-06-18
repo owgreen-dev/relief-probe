@@ -20,7 +20,8 @@
         "Verification passes"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-18",
       "notes": "ZBP = ZIP Business Patterns (establishments by ZIP x NAICS) so we join on borrower_zip directly — avoids a zip->county crosswalk. Keep the loader path-based + schema-tolerant; the real Census file is downloaded manually post-loop."
     },
     {

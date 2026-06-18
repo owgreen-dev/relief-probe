@@ -56,4 +56,12 @@ validation + promotion is a MANUAL post-loop step.
 
 ## Learnings (append as you go)
 
-- (none yet for Loop 2)
+- L2-001 (establishments table + ZBP loader): added `establishments` table to
+  warehouse/db.py SCHEMA_SQL with composite PK (zip, naics) for idempotency. New
+  loader ingest/establishments.py::load_zbp_csv mirrors load_ppp_csv (all_varchar +
+  TRY_CAST + INSERT OR IGNORE). Key trick: ZBP headers vary in case across vintages,
+  so read with `normalize_names=true` (DuckDB lowercases headers) and reference
+  quoted lowercase "zip"/"naics"/"est". Source documented in ingest/sources.py
+  (ZBP_LANDING_URL + note) — no hardcoded fragile URL. Tests in
+  tests/test_establishments_loader.py against a synthetic CSV (mixed-case headers +
+  blank est -> NULL). 95 tests pass.
