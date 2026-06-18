@@ -54,4 +54,8 @@ SEEDED tmp_path warehouses — never the real data/ warehouse, never invent numb
 
 ## Learnings (append as you go)
 
-- (none yet for Loop 1)
+- **L1-001 done** (`_entity.py` + `tests/test_entity.py`). `entity_key` = `normalize_name`
+  (from `labels/resolve.py`, strips corporate suffixes INC/LLC/THE/AND/OF...) + ` @ ` +
+  `normalize_address` (building-level, strips suites). Returns None if either side is
+  blank — note "LLC Inc" normalizes to "" (all-suffix name), so it's unkeyable too.
+  Key format: `"<NORM NAME> @ <NORM ADDR>"`. Pure function, no warehouse. 79 tests pass.
