@@ -118,7 +118,7 @@ def benchmark(
     full_population: bool = typer.Option(
         False,
         "--full-population",
-        help="Evaluate lift over all ~11.3M loans instead of the labelable $150k+ "
+        help="Evaluate lift over all ~11.4M loans instead of the labelable $150k+ "
         "slice. Inflates lift (10x bigger haystack, same hits) — slice is the "
         "honest default.",
     ),
@@ -1040,7 +1040,7 @@ def ingest(
 ) -> None:
     """Resolve + download + load public PPP FOIA loan data into the warehouse.
 
-    `150k_plus` (~1M loans) is the fast default; `all` pulls ~11.5M loans (~8 GB).
+    `150k_plus` (~1M loans) is the fast default; `all` pulls ~11.4M loans (~8 GB).
     """
     from relief_probe.ingest import ingest_ppp
 

@@ -14,7 +14,7 @@ Prioritized backlog for relief-probe. Status as of the initial scaffold.
   mapped from the 53-col FOIA CSV), `fraud_cases` (PU labels), `signals` (output contract).
 - **PPP ingest** (`ingest/`): live CKAN URL resolver (no hardcoded links) →
   streaming download (cached) → `INSERT OR IGNORE` column-mapped load. Slices:
-  `150k_plus` (~1M loans), `under_150k`, `all` (~11.5M).
+  `150k_plus` (~1M loans), `under_150k`, `all` (~11.4M).
 - **CLI**: `relief-probe ingest --slice …`, `relief-probe info`.
 - **Tests**: offline loader tests (real header, type/round-trip, idempotency) — 2 passing.
 - Verified the live resolver returns real URLs (1 file / 13 files).
@@ -41,7 +41,7 @@ Still planned (M2.1): `proceeds_anomaly` (payroll-proceed share vs jobs/term),
 ### Loop 1 — research-driven detectors ✅ (built, validated, dispositioned)
 
 Two new public-data detectors targeting patterns *different* from dollars-per-job, built
-exploratory then validated on the real ~11.3M-loan warehouse against the DOJ labels:
+exploratory then validated on the real ~11.4M-loan warehouse against the DOJ labels:
 - **`multiple_funded_loans`** (`detectors/multiple_funded_loans.py`) — entity resolution
   (normalized name + building-level address, `detectors/_entity.py::entity_key`) →
   borrowers exceeding the one-per-draw rule (≥2 same-draw loans or >2 funded total).
@@ -241,7 +241,7 @@ serve-mcp`); `mcp`/LLM deps are imported lazily so the core env stays green.
 build **H4 first** (the hand-labeled sample is the Tier-1 judge's calibration set), then
 **M7 Tier 1 only** (Haiku 4.5 plausibility scorer + `triage` CLI + validation gate).
 Established LLM-cascade pattern (FrugalGPT); Batch API (50% off) + prompt caching +
-structured outputs; ~$2–4 per run vs ~$8–16k to run the LLM over all 11.3M loans.
+structured outputs; ~$2–4 per run vs ~$8–16k to run the LLM over all 11.4M loans.
 
 ### Tier 1 — semantic plausibility scorer ✅ (built; deterministic-first + key-gated)
 
@@ -273,7 +273,7 @@ implausibility into a transparent re-rank (`composite + 0.5·(implausibility/3)`
 
 ### Tier-1 real-data verdict (June 2026): honest NEGATIVE — built, opt-in, NOT promoted
 
-Ran `triage --top-k 300 --llm --gate` (Haiku 4.5) on the real 11.3M warehouse / 325 labels
+Ran `triage --top-k 300 --llm --gate` (Haiku 4.5) on the real 11.4M warehouse / 325 labels
 (`data/triage_runs/`). **Result: no lift — gate `regressed` by exactly one loan.**
 
 | k | composite lift | triage (Haiku) lift | hits |
@@ -553,7 +553,7 @@ The build is complete and above-median on breadth + engineering + honesty, but t
      payroll ratio ≤313), so naics swamped everything → composite now percentile-
      normalises per detector (`CUME_DIST`) before `max + corroboration`. Composite
      lift recovered from **0× → 29.7×@100 / 23.8×@500** on the slice.
-  Because lift over the full 11.3M is denominator-inflated (same hits, 10× base-rate
+  Because lift over the full 11.4M is denominator-inflated (same hits, 10× base-rate
   drop), `benchmark` now defaults to the labelable **$150k+ slice** and reports
   full-population recall separately (`--full-population` to override).
 - **H3 — Bootstrap CIs on lift@k.** ✅ Done. `bootstrap_lift_cis` (2,000-resample
@@ -577,7 +577,7 @@ The build is complete and above-median on breadth + engineering + honesty, but t
   ring AND a $/job detector now shows corroboration across **independent** views.
   Orthogonality is proven on synthetic data and **confirmed on real data**
   (`detector_overlap` Jaccard ≈ 0.019 vs payroll, ≈ 0.0015 vs naics).
-  **Real-data verdict (run on the full 11.3M warehouse): a validated NEGATIVE.** The
+  **Real-data verdict (run on the full 11.4M warehouse): a validated NEGATIVE.** The
   ring detector flags ~27% of the $150k+ slice (263k loans) and prosecuted loans sit in
   rings at essentially the base rate at *every* ring-size threshold (lift ≈ 0.6–1.0× at
   min_ring 3/5/8/12/20; ≈0 beyond) — address clustering is dominated by legitimate

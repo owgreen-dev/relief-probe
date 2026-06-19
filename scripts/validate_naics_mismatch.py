@@ -1,7 +1,7 @@
 """Validate the name<->NAICS mismatch detector on real labels (read-only).
 
 Does the semantic name<->industry mismatch concentrate prosecuted loans near the
-top? We can't embed all 11.3M names on CPU, so we estimate on a subset: all labeled
+top? We can't embed all 11.4M names on CPU, so we estimate on a subset: all labeled
 loans + a random sample of unlabeled $150k+ loans. We rank that subset by mismatch
 score under BOTH embedders (the lexical HashingEmbedder default and the real semantic
 SentenceTransformer) and report where the labels fall (PU-honest mean percentile +

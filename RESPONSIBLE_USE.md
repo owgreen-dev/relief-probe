@@ -75,8 +75,9 @@ lender, borrower address type) against:
 
 - The full $150k+ loan population (965,122 loans) — to show where the loan sits in
   the overall distribution.
-- The 404 entity-resolved DOJ-prosecuted loans — to show what signals, if any, the
-  loan shares with cases that were actually charged.
+- The entity-resolved DOJ-prosecuted loans — to show what signals, if any, the loan
+  shares with cases that were actually charged. (404 are resolved in total; the **368**
+  that fall in the $150k+ slice are the comparison set, shown live in the tab.)
 - The prosecuted population in the same NAICS and state — to show industry-specific
   context.
 

@@ -310,7 +310,7 @@ def _slice_universe(
     """Loan_numbers in the evaluation slice, or None for the whole population.
 
     The resolved labels live almost entirely in the public $150k+ disclosure slice,
-    so ranking the full ~11.3M-loan population mechanically deflates the base rate
+    so ranking the full ~11.4M-loan population mechanically deflates the base rate
     and inflates lift (the same handful of hits over a 10x bigger haystack). The
     default benchmark therefore restricts evaluation to the *labelable* slice for an
     apples-to-apples lift; full-population recall is reported separately.

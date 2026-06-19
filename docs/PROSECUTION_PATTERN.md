@@ -38,7 +38,9 @@ The prosecution pattern comparison takes a loan number and produces four outputs
 The 404 prosecuted loans in this dataset were identified by:
 
 1. Scraping all DOJ press releases tagged "COVID-Related Fraud" or containing
-   PPP/EIDL loan keywords (3,414 releases total).
+   PPP/EIDL loan keywords (3,414 releases total — one release often charges multiple
+   defendants, so the ~3,500 charged defendants and the 3,414 releases are different
+   counts of the same enforcement record, not a discrepancy).
 2. **Exact entity resolution** — matching defendant business names to loan numbers in
    the SBA FOIA file using normalized name + state + amount corroboration. This yields
    **325 loans**, hand-validated at ~84-88% precision (95% CI: 72-92%).
@@ -47,7 +49,9 @@ The 404 prosecuted loans in this dataset were identified by:
    the release names the owner, not the LLC). This adds **79 loans** at ~91-99%
    precision, for **404 total**.
 
-These 404 represent a **tiny, prosecution-biased slice** of estimated PPP fraud:
+Of these 404, **368 fall in the $150k+ slice** that the comparison runs over (the tab
+shows this count live). These 404 represent a **tiny, prosecution-biased slice** of
+estimated PPP fraud:
 - SBA-OIG estimates total PPP fraud at ~$200B
 - DOJ has charged ~3,500 defendants totaling a few billion dollars
 - The 404 that resolved to loan numbers are a subset of those charges

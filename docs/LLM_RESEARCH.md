@@ -46,7 +46,7 @@ That's unused, discriminative, and cheap.
 - **Embedding-space kNN anomaly.** L2-normalize → PCA ~50–100d → FAISS average-kNN-distance
   (k≈10–50). Proven: simple kNN beats deep AD (DN2 2002.10445; TAD-Bench 2501.11960;
   Text-ADBench 2507.12295). Skip autoencoders/DeepSVDD.
-- **Cost is a non-issue:** embed all 11.3M names locally (EmbeddingGemma-308M / bge-small,
+- **Cost is a non-issue:** embed all 11.4M names locally (EmbeddingGemma-308M / bge-small,
   256-d, ~1–2h on one GPU) or via API for ~$2–5 total. Do NOT sample.
 
 ### B. External evidence — the strongest *fraud-correlation* evidence
@@ -91,7 +91,7 @@ lenders were FinTechs.
 ## What NOT to do (evidence-backed negatives — don't burn time here)
 - **LLM-as-judge re-ranker over structured fields** → dead end (FinFRE-RAG; our own null).
   Keep the existing `triage` only for analyst-facing *explanations* of already-ranked leads.
-- **TabPFN** → scale mismatch (designed for ≤~100K rows; we have 11.3M).
+- **TabPFN** → scale mismatch (designed for ≤~100K rows; we have 11.4M).
 - **NVIDIA transaction-foundation-model (+42% AP)** → requires per-entity transaction
   *sequences* we don't have (PPP is largely one-shot loans).
 - **Synthetic positives** → model collapse erases the rare-class tail (Nature 2024), tabular
@@ -122,8 +122,10 @@ lenders were FinTechs.
 2. ⏸ **DEFERRED — Agentic KYB evidence enrichment** (user skipped option 🅑). Strongest
    fraud evidence; revisit when ready for the external-API + legal/ethical surface.
 3. ✅ **BUILT + VALIDATED — LLM-adjudicated entity resolution** (`labels/llm_resolve.py`,
-   `resolve-labels-llm`). Amount-blocked + LLM name adjudication recovered 7 new labels
-   (325→332) from a capped 400-candidate real run — DBA / sole-prop / punctuation variants.
+   `resolve-labels-llm`). Amount-blocked + LLM name adjudication — DBA / sole-prop /
+   punctuation variants. *(This early note records a capped 400-candidate test that found
+   7 (325→332); the **full sweep later recovered 79, for 325→404 (+24%)** — see
+   NEXT_STEPS / RESULTS for the final number.)*
 4. ⏭ **NEXT — PU-learning scorer** (PU-bagging first; classical ML) consuming features 1–3,
    validated by held-out-positive recall@k, blended not substituted.
 

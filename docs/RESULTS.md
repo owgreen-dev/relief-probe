@@ -4,16 +4,18 @@ The clean, human-readable version of the method verdicts. (The blow-by-blow engi
 with every parameter and caveat is [NEXT_STEPS.md](NEXT_STEPS.md); this is the summary written
 for a reader.)
 
-All numbers are on the labelable **$150k+ slice** (965,122 loans; 404 entity-resolved DOJ
-prosecution labels; base rate 0.034%), validated out-of-time against charges that post-date the
-loans. Because confirmed fraud is a tiny, prosecution-biased sample, everything is
-**recall-on-known-fraud, not a fraud rate** — a loan not in the label set is *unlabeled, not
-innocent*.
+All numbers are on the labelable **$150k+ slice** (965,122 loans), validated out-of-time
+against charges that post-date the loans. The entity-resolved DOJ label set is **404** loans
+(325 exact-match + 79 LLM-recovered; 368 fall in the slice). The **composite lift benchmark
+below is measured on the 325 exact-match labels** (base rate 0.034%) and was not re-run on the
+larger set; the **3.4× homophily** result uses the full 404. Because confirmed fraud is a tiny,
+prosecution-biased sample, everything is **recall-on-known-fraud, not a fraud rate** — a loan
+not in the label set is *unlabeled, not innocent*.
 
 ## The headline: does the ranking find prosecuted fraud?
 
 **Yes, and the signal is honest about its limits.** The composite ranking (three unsupervised
-detectors, percentile-combined) lifts prosecuted loans **~24× at k=500** over the base rate.
+detectors, percentile-combined) lifts prosecuted loans **23.8× at k=500** over the base rate.
 Two caveats the project insists on:
 
 - **The very top is noise; the k≥500 band is real.** The eye-catching lift@100 rests on ~3
@@ -55,9 +57,9 @@ expansion** — finding look-alikes, recovering labels, expanding from a known l
 
 Reported because reporting them is the point — an honest negative is a result, not a failure.
 
-- **LLM plausibility re-ranker — no lift.** Escalating the top-k composite leads to an LLM
-  "could this business plausibly justify this loan?" judge did not concentrate prosecuted loans
-  better, and regressed the very top by one loan. Its calls look sensible, but plausibility
+- **LLM plausibility judge — no lift.** Escalating the top-k composite leads to an LLM
+  "could this business plausibly justify this loan?" judge (which re-ranks them) did not
+  concentrate prosecuted loans better, and regressed the very top by one loan. Its calls look sensible, but plausibility
   simply isn't aligned with *what got prosecuted* — the composite already nails the top, and
   many prosecuted loans look plausible.
 

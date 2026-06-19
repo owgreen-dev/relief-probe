@@ -5,7 +5,7 @@ testable hypothesis: if fraud is committed in rings/templates, then a prosecuted
 loan's nearest look-alikes should themselves be prosecuted MORE than chance. This
 script measures that homophily on the real labels.
 
-We can't search all 11.3M loans, so we estimate on a subset: all labeled loans + a
+We can't search all 11.4M loans, so we estimate on a subset: all labeled loans + a
 random sample of unlabeled $150k+ loans, in an in-memory warehouse. For each labeled
 loan we take its k nearest neighbors (via find_similar within the subset) and count
 how many are also labeled; the homophily rate vs the subset base rate is the lift.

@@ -5,7 +5,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 ![Warehouse: DuckDB](https://img.shields.io/badge/warehouse-DuckDB-yellow.svg)
 
-**Finding fraud leads in 11.3M public PPP loans — validated against *real, future* DOJ prosecutions, and honest about what works and what doesn't.**
+**Finding fraud leads in 11.4M public PPP loans — validated against *real, future* DOJ prosecutions, and honest about what works and what doesn't.**
 
 Reproducible by a stranger from public federal files (SBA FOIA loan data + DOJ/SBA-OIG enforcement records), on a laptop, against a local DuckDB warehouse — no cluster.
 
@@ -25,13 +25,13 @@ The differentiator isn't a single model — it's the **discipline**. Every metho
 
 ## Results at a glance
 
-**Does the ranking find prosecuted fraud?** On the labelable 965k-loan **$150k+ slice** (base rate 0.034%), the composite ranking lifts prosecuted loans **~24× at k=500** — with honest **95% bootstrap CIs** (the eye-catching @100 number rests on *3 loans* and its CI spans zero; the README says so). And it barely beats a one-line `ORDER BY amount/jobs DESC` sort — so the *ratio* is the signal, not the machinery. That self-critique is the point.
+**Does the ranking find prosecuted fraud?** On the labelable 965k-loan **$150k+ slice** (base rate 0.034%), the composite ranking lifts prosecuted loans **23.8× at k=500** — with honest **95% bootstrap CIs** (the eye-catching @100 number rests on *3 loans* and its CI spans zero; the README says so). And it barely beats a one-line `ORDER BY amount/jobs DESC` sort — so the *ratio* is the signal, not the machinery. That self-critique is the point.
 
 **The "add AI" experiment, scored honestly — five negatives, three wins:**
 
 | Bucket | Outcome |
 | --- | --- |
-| **Prediction / cold-ranking** (re-score a loan's own fields) | LLM plausibility reranker ❌ · name↔NAICS embedding mismatch ❌ · PU-bagging learned scorer ❌ *(temporal holdout caught the overfit)* · graph ring cold-rank ❌ · business-recency ~❌ |
+| **Prediction / cold-ranking** (re-score a loan's own fields) | LLM plausibility judge ❌ · name↔NAICS embedding mismatch ❌ · PU-bagging learned scorer ❌ *(temporal holdout caught the overfit)* · graph ring cold-rank ❌ · business-recency ~❌ |
 | **Retrieval / expansion** (bring new info, exploit relationships) | LLM entity resolution ✅ **+79 labels (+24%)** · similar-case homophily ✅ **3.4×** · graph lead-expansion ✅ |
 
 Full per-method verdicts, written for a reader: **[docs/RESULTS.md](docs/RESULTS.md)** (the blow-by-blow engineering log is [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)).
@@ -112,7 +112,7 @@ The same public data cuts both ways. A fifth dashboard tab lets a **borrower, at
 
 ## Results in detail (the honest version)
 
-On the $150k+ slice (965,122 loans; 325→404 entity-resolved DOJ labels; base rate 0.034%), lift over base rate (raw hit counts in parens):
+On the $150k+ slice (965,122 loans; base rate 0.034%), measured against the **325 exact-match labels** — the LLM step later grew the full entity-resolved set to **404** (368 of them in the slice; used for the homophily result above), but the composite lift table below was not re-run on the larger set — lift over base rate (raw hit counts in parens):
 
 | ranking | lift@100 | lift@500 | lift@1000 | recall@5000 |
 | --- | --- | --- | --- | --- |
@@ -142,11 +142,13 @@ A snapshot you (or a fork) can pick up loop-by-loop. Each is scoped and points a
 
 | source | role | status |
 | --- | --- | --- |
-| SBA PPP FOIA loan-level data (data.sba.gov) | core loan population (11.3M) | ✅ ingested |
+| SBA PPP FOIA loan-level data (data.sba.gov) | core loan population (**11,365,188** loans, ≈11.4M; current FOIA release) | ✅ ingested |
 | DOJ COVID-fraud prosecution press releases | benchmark labels (PU positives) | ✅ scraped + resolved |
 | Census ZIP Business Patterns (census.gov) | establishment counts (for `establishment_overcount`) | manual download |
 | OpenCorporates API | KYB external evidence (registration date) — Tier B | opt-in, token + legal review |
 | Synthetic spliced documents (built-in) | vision train/eval (offline) | ✅ |
+
+*Known data-quality note: a few DOJ releases carry a mis-parsed `alleged_amount` (e.g. a $14.7M scheme stored as $1.8B) — a noisy **metadata** field on an otherwise-correct label, not a loan-amount error. Loan amounts come straight from the SBA file. See [docs/LABEL_PRECISION.md](docs/LABEL_PRECISION.md).*
 
 ## License
 

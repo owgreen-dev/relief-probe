@@ -13,13 +13,13 @@ shape is **rule-based → semantic → LLM**. relief-probe already has the rule-
 
 | Tier | Model | Scope | Cost basis |
 | --- | --- | --- | --- |
-| 0 — deterministic composite (built) | none | ALL 11.3M loans | free |
+| 0 — deterministic composite (built) | none | ALL 11.4M loans | free |
 | 1 — semantic plausibility | Haiku 4.5 (`claude-haiku-4-5`, $1/$5 per MTok) | top ~1,000 composite leads | Batch API |
 | 2 — DOJ press-release corroboration (later) | Haiku 4.5 | loans near a DOJ release | Batch API |
 | 3 — deep investigation (mostly built: `investigate --llm`) | Opus 4.8 (`claude-opus-4-8`, $5/$25 per MTok) | top ~25 survivors | sync |
 
 **Cardinal rule:** never run the LLM over the full population — Tier 0 does the
-11.3M → 1,000 cut for free.
+11.4M → 1,000 cut for free.
 
 ## Tier-1 plausibility scorer (LLM-as-judge)
 
@@ -47,7 +47,7 @@ past 4k to cache.
 | Tier 3 — Opus deep-dive over top-25 | 25 loans | ~$1–2 |
 | **Total per triage run** | | **~$2–4** |
 
-Naively running Haiku over all 11.3M loans ≈ **$8–16k**. The cascade gets the same
+Naively running Haiku over all 11.4M loans ≈ **$8–16k**. The cascade gets the same
 top-end coverage for single-digit dollars (~99.97% saving). That contrast is the M7 story.
 
 ## Non-negotiables (mirror M5 + project discipline)
@@ -79,7 +79,7 @@ Built as planned: `triage/` package, `relief-probe triage --top-k N [--llm] [--g
 baseline + concurrent/robust `LlmJudge` on Haiku 4.5 with strict 0–3 structured output),
 hard cap (2,000), and the validation gate. Deterministic-first/key-gated, 18 tests.
 
-Real `--llm --gate` run on the full 11.3M warehouse / 325 labels (300 leads judged in
+Real `--llm --gate` run on the full 11.4M warehouse / 325 labels (300 leads judged in
 ~3.5 min at `--concurrency 10`, 0 fallbacks; logs in `data/triage_runs/`):
 
 | k | composite lift | triage (Haiku) lift | hits |
