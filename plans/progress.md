@@ -115,3 +115,29 @@ MANUAL human decision AFTER this loop. Never touch the real data/ warehouse in t
   pair (2 borrowers, 1 relation) to prove the edge-type gate (the address-alone-null
   callback: shared address alone does NOT fire). Reused the one-hot `_StubEmbedder`
   + `_SpyCon` from test_graph_build. Label-free proven via the spy (no fraud_cases).
+
+- **G-003 (real-data validation script) DONE.** `scripts/validate_ring_graph.py`
+  — READ-ONLY via `connect(read_only=True)`. Builds the graph over the $150k+ slice
+  DIRECTLY on the real read-only connection (no in-memory copy / no random sample —
+  `build_loan_graph` and `temporal_label_split` are both read-only). Ranks ALL slice
+  loans by a LABEL-FREE structural score `ring_score = log1p(distinct_borrowers) +
+  log1p(community_size)` (matches the detector formula). Evaluates ONLY on H7
+  out-of-time positives (`temporal_label_split(con, HOLDOUT_YEAR=2023)` → test set,
+  charged > 2023) intersected with the slice, via `ranking_metrics` +
+  `positive_rank_stats`. Prints mean-percentile verdict (0.5 = random) + recall@k.
+- COMPOSITE COMPARISON without writing: `composite_ranking(con)` only READS the
+  `signals` table (read-only-safe), so we compare on the SAME held-out labels. Guarded
+  with try/except + count — if `signals` is empty (no prior `relief-probe run`), the
+  composite line is skipped with a clear message rather than crashing.
+- TRACTABILITY/HONESTY: pure-python NetworkX over ~965k nodes is heavy; `MIN_AMOUNT`
+  is a knob to shrink the slice (a higher-amount slice, NOT a random sample, so
+  edges/rings stay intact — random sampling shatters rings). Documented in the module
+  docstring along with the read-the-CONTRAST + address-alone-null + honest-NEGATIVE
+  caveats (mirrors validate_naics_mismatch).
+- UNIT TEST (`tests/test_validate_ring_graph.py`): the real run is a manual artifact,
+  so the test only covers the warehouse-free parts — imports the script via
+  `importlib.util.spec_from_file_location` (proves it imports with NO `graph` extra at
+  module load, since build/features import nx lazily) and exercises the pure helpers
+  `ring_score` (monotonic, matches formula) + `rank_loans_by_structure` (score-desc,
+  ties broken by loan_number). No conftest/pythonpath existed for scripts/, hence the
+  importlib-by-path approach.

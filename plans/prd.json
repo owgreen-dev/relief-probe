@@ -51,7 +51,8 @@
         "Verification passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "This is the honest gate. Label-free structural score for ranking (e.g. distinct_borrowers in the component, community_size, or similarity-edge degree). Use temporal_label_split so the evaluation is out-of-time. The real-warehouse run is the manual artifact; the unit-testable part is the import/smoke + any pure helper."
     },
     {
