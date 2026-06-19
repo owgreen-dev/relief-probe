@@ -21,7 +21,8 @@
         "Verification passes (uv run --extra vision --extra graph pytest && uvx ruff check .)"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "Keep it sparse: GROUP BY a normalized key in Python, link within the group, cap group size. Reuse normalize_address / entity_key verbatim. For the similarity edge, reuse the similarity blocking (same-state + amount band) and an embedder cosine threshold; the offline HashingEmbedder keeps tests dependency-free. Store node attributes for borrower_state/amount/name if useful downstream."
     },
     {

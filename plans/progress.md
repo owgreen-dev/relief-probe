@@ -62,4 +62,28 @@ MANUAL human decision AFTER this loop. Never touch the real data/ warehouse in t
 
 ## Learnings (append as you go)
 
-- (none yet — first iteration)
+- **G-001 (graph builder) DONE.** `src/relief_probe/graph/{__init__,build}.py` +
+  `tests/test_graph_build.py`. `build_loan_graph(con, *, min_amount=150_000.0,
+  edge_types=("address","entity","similarity"), max_group=50, sim_threshold=0.85,
+  amount_band=50_000.0, embedder=None)` → a `networkx.Graph`. Nodes = $150k+
+  loan_numbers with attrs (borrower_name, norm_name, borrower_state, amount).
+- networkx is imported LAZILY via `_require_networkx()` inside the function (clear
+  RuntimeError if the `graph` extra is absent); `graph/__init__.py` only imports
+  `build_loan_graph` (which doesn't import nx at module load), so the package
+  imports fine without the extra. The `graph` extra was ALREADY in pyproject.toml.
+- Edges collapse onto one undirected edge carrying `type` (a single representative
+  in EDGE_TYPES) + `types` (a SET) — a pair linked by >1 relation keeps all types,
+  so a component's edge-type span is recoverable (key for G-002's >=2-types rule).
+- Sparsity: address/entity = clique within a shared-key group via `_link_clique`;
+  similarity = pairwise-above-threshold within a (state, round(amount/amount_band))
+  block via `_link_similarity` (embed once, L2-normalized rows → dot = cosine).
+  ANY group/block with size > max_group is SKIPPED entirely (not capped-to-N) — a
+  giant shared key cannot form a clique.
+- TEST GOTCHA: the similarity block is keyed (state, round(amount/amount_band)).
+  `round()` is banker's rounding, and a *decoy in the same state+band* inflates the
+  ring's block past max_group and silently kills its similarity edges. Keep test
+  decoys in a different state OR a clearly different amount band. Used a one-hot
+  `_StubEmbedder` (cosine 1.0 iff identical name) for deterministic similarity
+  edges + a `_SpyCon` wrapper to prove no `fraud_cases` query (label-free).
+- LABEL-FREE proven: `test_builder_never_queries_fraud_cases` runs on empty
+  fraud_cases and asserts no executed SQL contains "fraud_cases".
