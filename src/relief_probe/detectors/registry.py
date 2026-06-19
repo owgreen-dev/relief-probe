@@ -37,9 +37,9 @@ promotes any that show it:
 * ``naics_name_mismatch`` — a SEMANTIC signal on the text the composite ignores: does
   the borrower NAME fit its declared NAICS INDUSTRY? Embeds names + industry titles and
   scores the declared industry's mismatch percentile (continuous, non-saturating — the
-  honest redo of the LLM-as-judge plausibility idea; see docs/LLM_RESEARCH.md). Default
-  offline embedder is a lexical proxy (weak); the real semantic signal needs the
-  ``embeddings`` extra. Built + tested; real-data validation pending the semantic model.
+  honest redo of the LLM-as-judge plausibility idea; see docs/LLM_RESEARCH.md). VALIDATED
+  on real labels: NO concentration (semantic mean percentile ~0.49, lift <1.0x at every
+  k) — prosecuted loans aren't industry-mismatched, so it stays exploratory (negative).
 
 Kept for investigation/evidence and opt-in scoring; not in the headline ranking.
 

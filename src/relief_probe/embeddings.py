@@ -78,6 +78,42 @@ class HashingEmbedder:
         return _l2_normalize(out)
 
 
+class Model2VecEmbedder:
+    """Torch-free semantic embeddings via model2vec (the ``embeddings-lite`` extra).
+
+    model2vec serves *static* distilled embeddings: a precomputed token-embedding
+    table looked up and pooled in pure NumPy — no torch, no GPU, no neural-net
+    forward pass. The model is ~30 MB and encoding is near-instant on CPU, which
+    makes it the right semantic option on a machine without a GPU (and far lighter
+    than the sentence-transformers/torch stack). Genuinely semantic (distilled from
+    a real sentence encoder), just lower-fidelity than a live transformer. Lazily
+    imported; a missing extra raises a clear, actionable error.
+    """
+
+    def __init__(self, *, model_name: str = "minishlab/potion-base-8M") -> None:
+        self.model_name = model_name
+        self._model = None
+
+    def _ensure_model(self):
+        if self._model is not None:
+            return self._model
+        try:
+            from model2vec import StaticModel
+        except ImportError as exc:  # pragma: no cover - only without the extra
+            raise RuntimeError(
+                "Torch-free semantic embeddings need the `embeddings-lite` extra. "
+                "Install it with `uv sync --extra embeddings-lite`, or use the "
+                "default HashingEmbedder (a lexical proxy)."
+            ) from exc
+        self._model = StaticModel.from_pretrained(self.model_name)
+        return self._model
+
+    def embed(self, texts: list[str]) -> np.ndarray:
+        model = self._ensure_model()
+        vecs = np.asarray(model.encode(texts), dtype=np.float32)
+        return _l2_normalize(vecs)
+
+
 class SentenceTransformerEmbedder:
     """Real semantic embeddings via sentence-transformers (the ``embeddings`` extra).
 

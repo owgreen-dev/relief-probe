@@ -297,14 +297,27 @@ Built the three the user picked (1, 3, 4 — skipped the agentic-KYB agent):
 - `reciprocal_rank_fusion` (Cormack 2009): the correct rank-fusion primitive (vs the
   additive blend that sank Tier 1), ready for any future reranker.
 
-### Phase 2 — name↔NAICS embedding-mismatch detector ✅ (the honest redo of Tier 1)
+### Phase 2 — name↔NAICS embedding-mismatch detector ✅ (built + validated NEGATIVE)
 - `detectors/naics_mismatch.py` + `embeddings.py`: embeds each borrower name and every
   candidate NAICS industry title, scores the declared industry's **normalized mismatch
   gap** (continuous, tie-robust — not a saturated 0-3). Targets the *text* the composite
-  never reads. Registered EXPLORATORY (SIGN-010). Default offline `HashingEmbedder` is a
-  lexical proxy (proves the machinery); the real semantic signal needs the `embeddings`
-  extra (a local sentence-transformer) — **real-data validation pending that model**.
-  Bundled canonical 2-digit NAICS sector titles; finer titles via `ingest-naics PATH`.
+  never reads. Registered EXPLORATORY (SIGN-010). Three embedders: `HashingEmbedder`
+  (default, offline lexical proxy, no deps), `Model2VecEmbedder` (torch-free semantic,
+  `embeddings-lite` extra — the right fit for a no-GPU box), `SentenceTransformerEmbedder`
+  (heavy torch, `embeddings` extra). Bundled 2-digit NAICS sector titles; finer via
+  `ingest-naics PATH`.
+- **Real-data verdict (validated NEGATIVE):** `scripts/validate_naics_mismatch.py` ranked
+  20k sampled $150k+ loans + the 400 labels by mismatch score. **No concentration** —
+  semantic (model2vec) mean percentile **0.489** (lexical 0.507), within noise of the
+  0.5 random line, and **lift < 1.0× at every k** (0.61×@500, 0.71×@1000): prosecuted
+  loans are, if anything, *slightly less* industry-mismatched than random — their declared
+  industries look plausible. Echoes the Tier-1 null: re-scoring the loan's own attributes
+  (numbers OR industry-text) doesn't beat the baseline because prosecuted loans look fine
+  on their face; the fraud is fabricated dollars, not a wrong NAICS. **Kept exploratory,
+  NOT promoted** — same discipline as `lender_concentration` / the Tier-1 reranker. (Honest
+  caveat: tested at coarse 2-digit sector granularity with a light embedder; a 6-digit-title
+  + heavier-embedder test is the remaining open question, but the flat sub-1.0× lift across
+  the egregious cross-sector cases makes it unpromising.)
 
 ### Phase 3 — LLM-adjudicated entity resolution ✅ (grows the labels; validated on real data)
 - `labels/llm_resolve.py` + `relief-probe resolve-labels-llm`: **block by amount** (the

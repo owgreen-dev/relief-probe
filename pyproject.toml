@@ -30,7 +30,12 @@ ml = ["scikit-learn>=1.4"]
 # Document-authenticity vision tab (ID-forgery + amount-tamper detection).
 vision = ["pillow>=10.0", "scikit-learn>=1.4"]
 # Semantic text embeddings for the naics_name_mismatch detector (the default
-# HashingEmbedder is a dependency-free lexical proxy; this swaps in a real model).
+# HashingEmbedder is a dependency-free lexical proxy). Two options:
+#   embeddings-lite — model2vec static embeddings: torch-free, CPU-only, ~30 MB,
+#     near-instant. The right choice on a machine without a GPU (default semantic).
+#   embeddings      — sentence-transformers/torch: higher fidelity, heavy (CUDA/CPU
+#     torch download). Only if you want the live-transformer quality.
+embeddings-lite = ["model2vec>=0.3"]
 embeddings = ["sentence-transformers>=2.2"]
 
 [project.scripts]

@@ -113,11 +113,12 @@ lenders were FinTechs.
   observed support.
 
 ## Prioritized plan (status — June 2026)
-1. ✅ **BUILT — Name↔NAICS embedding-mismatch detector** (`detectors/naics_mismatch.py`,
-   `embeddings.py`). Continuous normalized-gap feature; offline lexical default +
-   `embeddings`-extra semantic model. Registered exploratory; real-data lift validation
-   pending the semantic model. (Methodology fix also built: PU-honest metrics + RRF
-   primitive in `benchmark/core.py`.)
+1. ✅ **BUILT + VALIDATED NEGATIVE — Name↔NAICS embedding-mismatch detector**
+   (`detectors/naics_mismatch.py`, `embeddings.py`). Continuous normalized-gap feature;
+   offline lexical default + torch-free model2vec (`embeddings-lite`) + sentence-transformer
+   (`embeddings`). Real-data test: no concentration (semantic mean percentile ~0.49, lift
+   <1.0x at every k) — prosecuted loans aren't industry-mismatched. Kept exploratory, not
+   promoted. (Methodology fix also built: PU-honest metrics + RRF in `benchmark/core.py`.)
 2. ⏸ **DEFERRED — Agentic KYB evidence enrichment** (user skipped option 🅑). Strongest
    fraud evidence; revisit when ready for the external-API + legal/ethical surface.
 3. ✅ **BUILT + VALIDATED — LLM-adjudicated entity resolution** (`labels/llm_resolve.py`,
