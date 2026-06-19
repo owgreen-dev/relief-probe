@@ -26,7 +26,8 @@ agent = [
 # Read-only demo dashboard.
 viz = ["streamlit>=1.37"]
 # Learned-scorer experiment (supervised PU-learning vs the transparent baseline).
-ml = ["scikit-learn>=1.4"]
+# lightgbm (Loop 6): gradient-boosted PU scorer over the full signal composite.
+ml = ["scikit-learn>=1.4", "lightgbm>=4.0"]
 # Document-authenticity vision tab (ID-forgery + amount-tamper detection).
 vision = ["pillow>=10.0", "scikit-learn>=1.4"]
 # Semantic text embeddings for the naics_name_mismatch detector (the default
