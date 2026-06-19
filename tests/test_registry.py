@@ -10,6 +10,8 @@ the real data.
 
 from __future__ import annotations
 
+import pytest
+
 from relief_probe.detectors.registry import (
     all_detectors,
     exploratory_detectors,
@@ -79,6 +81,7 @@ def test_default_run_all_includes_promoted_excludes_exploratory(tmp_path):
 
 
 def test_explicit_run_all_includes_exploratory(tmp_path):
+    pytest.importorskip("networkx")  # the exploratory set includes the graph detector
     con = connect(tmp_path / "wh.duckdb")
     _seed(con)
     counts = run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
@@ -109,6 +112,7 @@ def test_default_run_all_omits_establishment_overcount(tmp_path):
 
 
 def test_explicit_run_all_includes_establishment_overcount(tmp_path):
+    pytest.importorskip("networkx")  # the exploratory set includes the graph detector
     con = connect(tmp_path / "wh.duckdb")
     _seed_overcount(con)
     counts = run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])
@@ -157,6 +161,7 @@ def test_default_run_all_omits_lender_concentration(tmp_path):
 
 
 def test_explicit_run_all_includes_lender_concentration(tmp_path):
+    pytest.importorskip("networkx")  # the exploratory set includes the graph detector
     con = connect(tmp_path / "wh.duckdb")
     _seed_lender_concentration(con)
     counts = run_all(con, detectors=[*all_detectors(), *exploratory_detectors()])

@@ -6,6 +6,8 @@ touch the real data/ warehouse, and we plant no benchmark numbers.
 
 from __future__ import annotations
 
+import pytest
+
 from relief_probe.benchmark import detector_flagged_loans, detector_overlap
 from relief_probe.detectors.duplicate_address_ring import DuplicateAddressRingDetector
 from relief_probe.detectors.naics_cohort_outlier import NaicsCohortOutlierDetector
@@ -156,6 +158,7 @@ def test_ring_detector_is_exploratory_not_in_default_composite():
 
 
 def test_default_run_all_excludes_ring_but_explicit_list_includes_it(tmp_path):
+    pytest.importorskip("networkx")  # the explicit exploratory list includes graph
     con = connect(tmp_path / "wh.duckdb")
     _seed_ring_plus_dollar_outlier(con)
     # Default run = production detectors only: no ring signals.

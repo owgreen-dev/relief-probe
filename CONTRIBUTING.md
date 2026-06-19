@@ -8,14 +8,16 @@ thread and add to it cleanly. Forks and "I tried this and here's what I found" P
 ## Setup
 
 ```bash
-uv run pytest                                     # ~205 tests, fully offline
+uv run pytest                                     # core suite — optional-extra tests auto-skip
 uvx ruff check .                                  # lint (line length 90)
 ```
 
 `uv` provisions everything (the dev group installs test deps automatically). Optional features
 live behind [pyproject](pyproject.toml) extras (`agent`, `viz`, `ml`, `vision`,
 `embeddings-lite`, `graph`) so the core stays light and runs with no network or API keys.
-The verification command this repo holds itself to:
+Tests that need an extra (e.g. the `graph` layer's networkx) **skip** cleanly without it — so
+bare `uv run pytest` is green, and the full run below exercises everything. The verification
+command this repo holds itself to:
 
 ```bash
 uv run --extra vision --extra graph pytest && uvx ruff check .
