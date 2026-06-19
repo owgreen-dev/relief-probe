@@ -1,4 +1,9 @@
-# Next steps
+# Next steps — internal working log & backlog
+
+> This is the **engineering working log**: the milestone-by-milestone build history, every
+> exploratory detector's real-data verdict (the honest negatives), and the open backlog.
+> It's deliberately granular and uses internal shorthand (M*, H*, Loop *, SIGN-*, Tier A/B).
+> **For the project overview and results, start with the [README](../README.md).**
 
 Prioritized backlog for relief-probe. Status as of the initial scaffold.
 
