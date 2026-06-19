@@ -67,6 +67,28 @@ def raw_dir() -> Path:
     return p
 
 
+def kyb_cache_dir() -> Path:
+    """Cache dir for KYB (know-your-business) external-evidence responses.
+
+    Mirrors :func:`raw_dir`; one JSON file per resolved query so a re-run is offline
+    and the OpenCorporates rate limit is spent at most once per borrower (and the
+    stored response carries the attribution ``raw_ref`` for the free-tier ToS).
+    """
+    p = raw_dir() / "kyb"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def opencorporates_token() -> str | None:
+    """OpenCorporates API token from the environment, or None if unset.
+
+    The Tier-B KYB client is gated on this: with no token the live provider raises
+    a clear error rather than hitting the network. Keep it in ``.env`` (gitignored).
+    """
+    token = os.environ.get("OPENCORPORATES_TOKEN")
+    return token or None
+
+
 def warehouse_path() -> Path:
     """Path to the DuckDB warehouse file."""
     return data_dir() / "relief_probe.duckdb"

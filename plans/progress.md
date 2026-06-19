@@ -86,3 +86,30 @@ OpenCorporates ToS (share-alike + attribution, no account-creation-to-bypass-gat
   `fraud_cases` table is created by `connect()` (warehouse/db.py) and starts empty.
 - Verify run: `uv run --extra vision --extra graph pytest && uvx ruff check .` →
   181 passed, 6 skipped; ruff clean. ~21s.
+- KYB-002 DONE (2026-06-19): `kyb/__init__.py` + `kyb/provider.py`. `KybEvidence`
+  frozen dataclass (registration_date: dt.date|None, is_non_registered, address_type,
+  matched_name, match_confidence, source, raw_ref). `EvidenceProvider` runtime_checkable
+  Protocol: `fetch(name, state, *, amount=None) -> KybEvidence | None`.
+  - `StubProvider(fixtures)`: keyed by `normalize_name`, ZERO network; unknown -> None.
+  - `OpenCorporatesProvider`: `requests` imported LAZILY inside `_fetch_raw` (module
+    import is net-free); `_ensure_token()` raises clear RuntimeError mentioning
+    OPENCORPORATES_TOKEN (token via ctor `token=` or `config.opencorporates_token()`);
+    backoff mirrors doj.py (`time.sleep(2**attempt)`, catch
+    `(requests.RequestException, ValueError)`). Tested ONLY via injected `session=`
+    (a fake whose `.get` returns canned payloads) — NEVER a real call.
+  - Cache: `config.kyb_cache_dir()` = `raw_dir()/kyb`; one `<key>.json` per query
+    (`_cache_key` = normalize_name + state, slugified). Cache-by-existence; corrupt
+    JSON -> `_load_cache` returns None -> re-fetch (try/except ValueError,OSError),
+    never crashes, never treated as empty-registry.
+  - Disambiguation (`_select`): precision-first — only registry hits whose
+    `normalize_name` == query are candidates; loan state breaks ties via
+    `resolve.score_match` (built a `_company_text` blob with the jurisdiction state
+    abbr+full-name so the state regex fires). Best returned with its conf; below
+    ACCEPT_CONFIDENCE(0.6) it's a low-confidence LEAD, not dropped. ZERO companies ->
+    is_non_registered=True (conf NON_REGISTERED_CONFIDENCE=0.5). Companies exist but
+    NONE name-match -> None (NOT a false "non-registered" claim — defamation/FP harm).
+  - score_match math: "X Trading Co" -> CORP suffix CO stripped -> 2 tokens, base 0.4
+    + state 0.25 = 0.65 (>=0.6); no state match -> 0.4 (<0.6). config.py gained
+    `kyb_cache_dir()` + `opencorporates_token()`. Tests set RELIEF_PROBE_DATA_DIR to
+    tmp (autouse fixture) so the cache writes under tmp_path, never real data/.
+- Verify run KYB-002: 189 passed, 6 skipped; ruff clean. ~16s.

@@ -36,7 +36,8 @@
         "Verification passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "requests is already a CORE dependency — NO new extra. The whole external client is testable with an injected transport; never a real call in tests. raw_ref stores the OpenCorporates company URL for the share-alike/attribution obligation."
     },
     {
