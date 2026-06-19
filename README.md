@@ -100,6 +100,17 @@ On the $150k+ slice (965,122 loans; 325→404 entity-resolved DOJ labels; base r
 
 Reproduce: `relief-probe ingest && relief-probe fetch-labels && relief-probe resolve-labels && relief-probe benchmark`.
 
+## Roadmap & where to take this next
+
+A snapshot you (or a fork) can pick up loop-by-loop. Each is scoped and points at the pattern to reuse — see [CONTRIBUTING.md](CONTRIBUTING.md) for the build → validate → **honest-disposition** discipline. Honest negatives are welcome results.
+
+- **Validate / promote the exploratory layers** *(S)* — `fraud_ring_graph` and `business_recency` are built + have validation harnesses but stay exploratory; re-measure their held-out lift vs the composite and promote only what earns it. *Reuse `scripts/validate_*.py` + `registry.py`.*
+- **A free KYB provider** *(M)* — implement the `EvidenceProvider` protocol against a **free** source (SAM.gov's government API, or a state Secretary-of-State) as a drop-in for OpenCorporates. *Reuse `kyb/provider.py::EvidenceProvider`.*
+- **The external-evidence (Tier-B) live result** *(S, gated)* — the OpenCorporates client is built; a real `kyb-enrich --live` run (token + legal review) would settle whether precise registration dates concentrate prosecuted loans. *Already built — needs a key.*
+- **More label sources** *(M)* — extract `(business, amount, program)` from CourtListener/RECAP court records with the LLM-extraction pattern, validated by a join back to the public SBA data. *Reuse `labels/llm_resolve.py`.*
+- **A better-regularized learned blend** *(M)* — stack the detector + structural/graph features into a PU scorer (the first PU-bagging attempt overfit on the temporal holdout — that's the bar to beat). *Reuse `scorer/`.*
+- **Real document data** *(M)* — run the vision/ELA layer on a real forged-document corpus (IDNet / "Find it again!") instead of synthetic splices. *Reuse `vision/`.*
+
 ## Data sources
 
 | source | role | status |
