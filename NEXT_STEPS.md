@@ -386,6 +386,35 @@ carry signal. This reframes the embeddings from a (failed) predictor into a (wor
   what only they can do (fuzzy matching, similarity, explanation), not to re-judge what the
   statistics already saw. 7 new tests (suite now 162: 156 passed + 6 skipped); ruff clean.
 
+## M10 — Learned PU scorer + temporal holdout (H7) ✅ (built + validated NEGATIVE)
+
+The "where's the trained model?" step, done with the H7 discipline up front. New
+`scorer/` package (behind the `ml` extra) + `relief-probe learn-score --holdout-year Y`.
+- **Temporal holdout (H7)** — `benchmark/core.py::temporal_label_split(con, year)` splits
+  the 404 labels by enforcement `charge_date`: train on charged ≤ Y, validate on charged
+  > Y (a loan placed by its earliest charge). Leakage-free by construction.
+- **Features** (`scorer/features.py`, pure NumPy/pandas) — structured program fields (log
+  amount/jobs/$-per-job, payroll & forgiveness shares, term, guaranty, single-job/round-
+  amount/NAICS-72 flags) **plus the unsupervised detector scores** (one column per
+  `detector_id`, 0 if absent) — so the model can learn a better combination than the
+  hand-weighted composite, leakage-free (the detectors aren't fit to labels).
+- **PU-bagging** (`scorer/pu_bagging.py`, Mordelet & Vert 2014) — bag T classifiers, each
+  on all positives + a bootstrap of unlabeled-as-negative, average the **out-of-bag**
+  scores. No class-prior assumption; ranking-oriented; right for prosecution-biased PU.
+- **Real-data verdict (VALIDATED NEGATIVE):** trained on 204 train positives (charged
+  ≤2023), evaluated on 164 held-out (>2023) over the 965k slice. **The composite beats the
+  learned scorer at every k** (composite recall 0.6%/1.2%/5.5% @100/1000/5000 vs learned
+  0.0%/0.0%/4.9%); both poor (~5%@5000). The model leaned almost entirely on
+  `forgiveness_ratio` (0.79 importance) — a pattern from *early*-prosecuted fraud that
+  **didn't generalize to later-prosecuted fraud**: the temporal holdout caught the
+  overfitting it's designed to catch. **Kept exploratory, NOT promoted** — composite stays
+  production. (Deliberately NOT re-tuned to chase a holdout win — that defeats the holdout.)
+- **The lesson, again:** even a model with strictly MORE information (detector scores +
+  structured fields + label fitting) can't beat the transparent composite on future
+  enforcement, because prosecuted loans look plausible and the labels are few/biased.
+  Reinforces the session meta-finding: AI/ML earns its keep at *retrieval* (label recovery,
+  ring-surfacing), not at *prediction* over these loans. 5 new tests (suite 167); ruff clean.
+
 ## Hardening / rigor backlog (post-M6, from the objective self-review)
 
 The build is complete and above-median on breadth + engineering + honesty, but the
@@ -480,11 +509,13 @@ LLM importorskip); ruff clean. Warehouse: **404 labeled loans** (325 exact + 79 
    72 TP / 6 ambiguous / 1 FP)** — ≥ the exact tier (84–88%); the exact-dollar gate is a strong
    anchor. conf≥0.95 (68/79) is essentially clean; the FP + most ambiguous sit at conf<0.90
    (a 0.95 threshold → near-spotless, −11 labels). Phase-3 win holds. See docs/LABEL_PRECISION.md.
-2. **PU-bagging learned scorer** (the `ml` extra) consuming the embedding/structured features
-   + the grown label set — the planned modeling step; validate by held-out-positive recall@k.
+2. ✅ **DONE — PU-bagging learned scorer + H7 temporal holdout.** Built (`scorer/`, `ml`
+   extra) and validated out-of-time: **composite beats the learned scorer** on held-out
+   (>2023) labels — an honest negative (the model overfit `forgiveness_ratio` on early
+   labels; the holdout caught it). Kept exploratory, not promoted. See M10 above.
 3. **Agentic-KYB external-evidence avenue** (deferred option 🅑) — registration-date-vs-loan-date
    gap via OpenCorporates; strongest published fraud evidence, heaviest external/legal surface.
-4. **H7 temporal holdout** before ANY label-aware tuning.
+   The remaining genuinely-untried avenue.
 
 **Open housekeeping:**
 - **Rotate `ANTHROPIC_API_KEY`** — it was pasted into the session transcript (treat as leaked).

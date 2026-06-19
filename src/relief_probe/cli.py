@@ -782,6 +782,88 @@ def similar(
     console.print(f"[dim]{SIMILARITY_DISCLAIMER}[/]")
 
 
+@app.command(name="learn-score")
+def learn_score(
+    holdout_year: int = typer.Option(
+        2023,
+        "--holdout-year",
+        help="Train on cases charged <= this year; validate on later ones (the "
+        "leakage-free out-of-time split, H7).",
+    ),
+    bags: int = typer.Option(50, "--bags", help="PU-bagging estimators."),
+) -> None:
+    """Learned PU scorer vs the composite on a temporal holdout (needs the `ml` extra).
+
+    Fits a PU-bagging model on prosecutions charged <= the holdout year (using the
+    detector scores + structured fields as features) and validates on prosecutions
+    charged later — the honest test of whether fitting to labels beats the
+    unsupervised composite on FUTURE enforcement. Recall-on-known-fraud, not a fraud
+    rate. See RESPONSIBLE_USE.md.
+    """
+    from relief_probe.scorer.validate import run_holdout_validation
+
+    with connect() as con:
+        n_lab = con.execute("SELECT COUNT(*) FROM fraud_cases").fetchone()[0]
+        n_sig = con.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+        if n_lab == 0 or n_sig == 0:
+            console.print(
+                "[yellow]Need labels + signals.[/] Run `fetch-labels`, "
+                "`resolve-labels`, and `score` first."
+            )
+            raise typer.Exit(code=1)
+        console.print(
+            f"Training PU-bagging ({bags} bags, holdout <= {holdout_year}) …"
+        )
+        try:
+            res = run_holdout_validation(
+                con, holdout_year=holdout_year, n_estimators=bags
+            )
+        except RuntimeError as exc:  # missing ml extra
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=1) from None
+
+    console.print(
+        f"Holdout: train (<= {res['holdout_year']}) "
+        f"[bold]{res['n_train_positives']}[/] positives · test (> "
+        f"{res['holdout_year']}) [bold]{res['n_test_positives']}[/] · population "
+        f"{res['population']:,} · base {res['base_rate']:.4%}"
+    )
+    ks = res["ks"]
+    t = Table(title="Held-out recall@k — learned PU scorer vs composite")
+    t.add_column("k")
+    t.add_column("learned hits", justify="right")
+    t.add_column("learned recall", justify="right")
+    t.add_column("composite hits", justify="right")
+    t.add_column("composite recall", justify="right")
+    for k in ks:
+        lm = res["learned"]["metrics"][k]
+        cm = res["composite"]["metrics"][k]
+        t.add_row(
+            f"{k:,}",
+            str(lm["hits"]),
+            "—" if lm["recall"] is None else f"{lm['recall']:.1%}",
+            str(cm["hits"]),
+            "—" if cm["recall"] is None else f"{cm['recall']:.1%}",
+        )
+    console.print(t)
+    cr = res["composite"]["ranks"]
+    console.print(
+        f"[dim]Held-out positives ranked: learned uses ALL {res['population']:,} "
+        f"loans; composite only ranks the {cr['n_in_ranking']:,} detector-flagged "
+        "(the rest sit in an arbitrary tail) — the learned scorer's edge is ranking "
+        "the unflagged majority.[/]"
+    )
+    console.print(
+        "[bold]Top learned features:[/] "
+        + ", ".join(f"{n} ({v})" for n, v in res["top_features"][:6])
+    )
+    styles = {"learned BEATS composite": "green"}
+    console.print(
+        f"Verdict: [{styles.get(res['verdict'], 'yellow')}]{res['verdict']}[/]  "
+        "[dim](out-of-time; recall-on-known-fraud on a PU sample).[/]"
+    )
+
+
 @app.command(name="serve-mcp")
 def serve_mcp() -> None:
     """Serve the four read-only investigator tools over MCP (stdio).

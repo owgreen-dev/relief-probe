@@ -36,6 +36,36 @@ def labeled_fraud_loans(con: duckdb.DuckDBPyConnection) -> set[str]:
     }
 
 
+def temporal_label_split(
+    con: duckdb.DuckDBPyConnection, holdout_year: int
+) -> tuple[set[str], set[str]]:
+    """Split prosecuted loans into (train, test) by enforcement ``charge_date``.
+
+    ``train`` = loans whose case was charged in or before ``holdout_year``;
+    ``test`` = loans charged strictly after it. A loan with multiple cases is
+    placed by its EARLIEST charge date (when it first became known fraud). This is
+    the out-of-time split mandated before fitting anything to labels (H7): a model
+    trained on the train positives is validated on the test positives it never saw,
+    which mirrors deployment (predict future enforcement) and can't leak.
+
+    Loans with no ``charge_date`` are dropped from both sets (can't be placed in
+    time).
+    """
+    rows = con.execute(
+        """
+        SELECT loan_number, MIN(charge_date) AS first_charge
+        FROM fraud_cases
+        WHERE loan_number IS NOT NULL AND charge_date IS NOT NULL
+        GROUP BY loan_number
+        """
+    ).fetchall()
+    train: set[str] = set()
+    test: set[str] = set()
+    for loan_number, first_charge in rows:
+        (train if first_charge.year <= holdout_year else test).add(str(loan_number))
+    return train, test
+
+
 def detector_flagged_loans(
     con: duckdb.DuckDBPyConnection, detector_id: str
 ) -> set[str]:

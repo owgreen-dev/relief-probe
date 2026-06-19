@@ -10,6 +10,7 @@ from relief_probe.benchmark.core import (
     ranking_metrics,
     reciprocal_rank_fusion,
     run_benchmark,
+    temporal_label_split,
 )
 from relief_probe.warehouse import connect
 
@@ -73,6 +74,28 @@ def test_reciprocal_rank_fusion_rejects_misaligned_weights():
 
     with pytest.raises(ValueError):
         reciprocal_rank_fusion([["A"], ["B"]], weights=[1.0])
+
+
+def test_temporal_label_split_by_charge_date(tmp_path):
+    con = connect(tmp_path / "wh.duckdb")
+    con.executemany(
+        "INSERT INTO fraud_cases (case_id, loan_number, source, match_method, "
+        "match_confidence, charge_date) VALUES (?, ?, 'doj', 'm', 1.0, ?)",
+        [
+            ("a", "OLD1", "2021-06-01"),
+            ("b", "OLD2", "2023-12-31"),
+            ("c", "NEW1", "2024-01-01"),
+            ("d", "NEW2", "2025-03-15"),
+            # Same loan charged twice; placed by its EARLIEST date (2022 -> train).
+            ("e", "DUP", "2022-01-01"),
+            ("f", "DUP", "2026-01-01"),
+            ("g", "UNDATED", None),  # no charge_date -> dropped from both
+        ],
+    )
+    train, test = temporal_label_split(con, holdout_year=2023)
+    assert train == {"OLD1", "OLD2", "DUP"}
+    assert test == {"NEW1", "NEW2"}
+    assert "UNDATED" not in train and "UNDATED" not in test
 
 
 def _seed(con):
