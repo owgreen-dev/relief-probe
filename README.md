@@ -36,6 +36,15 @@ The differentiator isn't a single model — it's the **discipline**. Every metho
 
 Full per-method verdicts, written for a reader: **[docs/RESULTS.md](docs/RESULTS.md)** (the blow-by-blow engineering log is [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)).
 
+### Two rankers, one default
+
+So which is "the" ranking? There are two, for two different jobs — and every headline number names which:
+
+- **Composite — the default.** Three unsupervised detectors, percentile-combined. **Transparent** (every lead explains itself: dollars-per-job, payroll-cap, duplicate funding), **label-free**, and unbiased toward enforcement patterns. The ranking you'd defend to an auditor.
+- **LightGBM learned scorer — opt-in, exploratory.** A PU model over the *full* signal union. **~2× the composite's recall** on the >2023 holdout (CI-backed) — but not per-loan explainable, and partly learning *where enforcement looks* (lender/geo). A power tool with an asterisk; **never the default**, never in the production composite.
+
+They're complementary, not competing: the transparent baseline is the headline; the learned scorer is the higher-recall option; and an **RRF consensus** of the two (loans both rank high) is the highest-confidence tier. The discipline is that the *default* stays explainable and label-free — the prosecution-biased model is opt-in, by design.
+
 ## Architecture
 
 Layers mirror a real program-integrity shop; each is independently demoable. Output contract: every detector emits `(loan_number, detector_id, score, evidence_json)` into one `signals` table.
