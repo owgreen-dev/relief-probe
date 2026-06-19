@@ -34,7 +34,7 @@ The differentiator isn't a single model — it's the **discipline**. Every metho
 | **Prediction / cold-ranking** (re-score a loan's own fields) | LLM plausibility reranker ❌ · name↔NAICS embedding mismatch ❌ · PU-bagging learned scorer ❌ *(temporal holdout caught the overfit)* · graph ring cold-rank ❌ · business-recency ~❌ |
 | **Retrieval / expansion** (bring new info, exploit relationships) | LLM entity resolution ✅ **+79 labels (+24%)** · similar-case homophily ✅ **3.4×** · graph lead-expansion ✅ |
 
-Full per-method verdicts + methodology: [docs/](docs/) and the working log in [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md).
+Full per-method verdicts, written for a reader: **[docs/RESULTS.md](docs/RESULTS.md)** (the blow-by-blow engineering log is [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)).
 
 ## Architecture
 
@@ -87,7 +87,11 @@ uv run relief-probe resolve-labels             #   … and entity-resolve them t
 uv run relief-probe benchmark                  # measure how well the ranking finds prosecuted fraud
 ```
 
-**3. Explore the leads** — easiest is the dashboard (the screenshot above):
+**3. Explore the leads** — easiest is the dashboard. The **Loan-leads** tab is where you start: the ranked composite leads (large loans claiming very few jobs — the textbook PPP pattern), with prosecuted ones flagged.
+
+![relief-probe dashboard — Loan-leads tab](docs/images/loan-leads.png)
+
+*Loan-leads tab on **synthetic demo data** (fictitious sample-company names). The "Similar cases" tab (the hero screenshot up top) is the ring-expansion view.*
 
 ```bash
 uv run --extra viz --extra vision --extra embeddings-lite streamlit run app/dashboard.py
@@ -95,7 +99,7 @@ uv run relief-probe investigate <loan_number>                       # a grounded
 uv run --extra embeddings-lite relief-probe similar <loan_number>   # its look-alikes (rings) by name + $ + area
 ```
 
-More commands (LLM triage, KYB enrichment, the MCP server, the validation harnesses) are in [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md).
+See a real **[`investigate` report](docs/EXAMPLE_OUTPUT.md)** (what the tool actually prints) and the full **[per-method results](docs/RESULTS.md)**. More commands (LLM triage, KYB enrichment, the MCP server, the validation harnesses) are in [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md).
 
 ## Results in detail (the honest version)
 
