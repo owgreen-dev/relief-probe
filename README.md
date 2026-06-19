@@ -106,6 +106,10 @@ See a real **[`investigate` report](docs/EXAMPLE_OUTPUT.md)** (what the tool act
 
 The same public data cuts both ways. A fifth dashboard tab lets a **borrower, attorney, or researcher** look up a loan and see where it sits relative to the statistical pattern of the publicly-charged DOJ cases — **transparently, with no risk score and no accusation.** It's the most legally-sensitive surface in the project, and it's framed accordingly (persistent disclaimers, aggregate-only, "statistical comparison, not legal advice"). See **[docs/PROSECUTION_PATTERN.md](docs/PROSECUTION_PATTERN.md)** for the methodology and the explicit limitations, and the matching section in [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
+![relief-probe dashboard — Prosecution pattern tab](docs/images/prosecution-pattern.png)
+
+*The "Prosecution pattern" tab on **synthetic demo data** — a loan's profile, signal overlap, and percentile against the prosecuted population, behind a persistent "not legal advice, not a risk determination" disclaimer.*
+
 ## Results in detail (the honest version)
 
 On the $150k+ slice (965,122 loans; 325→404 entity-resolved DOJ labels; base rate 0.034%), lift over base rate (raw hit counts in parens):
