@@ -58,7 +58,8 @@ kyb/         Layer 10 — KYB evidence: external business-verification (OpenCorp
 ```
 src/relief_probe/   the pipeline — one subpackage per layer above (ingest, detectors, labels,
                     benchmark, agent, triage, similarity, graph, kyb, vision) + scoring / stats / cli
-app/                the Streamlit dashboard (the screenshot above) — 4 tabs
+app/                the Streamlit dashboard (the screenshot above) — 5 tabs (incl. a
+                    borrower-facing "Prosecution pattern" comparison)
 tests/              ~205 tests; fully offline (LLM + external-API paths are stubbed / key-gated)
 docs/               deep dives — methodology, label-precision audit, the LLM research synthesis
 scripts/            real-data validation harnesses (validate_*.py) — the evidence behind the claims
@@ -100,6 +101,10 @@ uv run --extra embeddings-lite relief-probe similar <loan_number>   # its look-a
 ```
 
 See a real **[`investigate` report](docs/EXAMPLE_OUTPUT.md)** (what the tool actually prints) and the full **[per-method results](docs/RESULTS.md)**. More commands (LLM triage, KYB enrichment, the MCP server, the validation harnesses) are in [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md).
+
+### The defensive side — "Prosecution pattern" tab
+
+The same public data cuts both ways. A fifth dashboard tab lets a **borrower, attorney, or researcher** look up a loan and see where it sits relative to the statistical pattern of the publicly-charged DOJ cases — **transparently, with no risk score and no accusation.** It's the most legally-sensitive surface in the project, and it's framed accordingly (persistent disclaimers, aggregate-only, "statistical comparison, not legal advice"). See **[docs/PROSECUTION_PATTERN.md](docs/PROSECUTION_PATTERN.md)** for the methodology and the explicit limitations, and the matching section in [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
 ## Results in detail (the honest version)
 
