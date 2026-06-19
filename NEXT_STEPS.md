@@ -117,7 +117,7 @@ pattern the per-loan detectors miss.
   was already registered there — no promotion). Mirrors the H6 / `establishment_overcount`
   discipline: built, validated, honest negative.
 
-### Loop 4 — multi-relational fraud-ring graph layer ⚗️ (built + tested; real-data validation is MANUAL)
+### Loop 4 — multi-relational fraud-ring graph layer ⚗️ (built + validated NEGATIVE for cold-ranking; a retrieval/expansion tool)
 
 A new **graph** layer (`graph/` package, NetworkX behind the `graph` extra) that tests the
 **relational thesis**: fraud over these PPP loans is *coordinated/relational*, not row-wise.
@@ -151,13 +151,23 @@ loop generalizes the relational signal into a graph + community detection.
   the BET here is that *combining* edge types + communities separates real rings from benign
   clustering. An honest NEGATIVE (ring structure no better than the composite/chance) is an
   acceptable, documented outcome.
-- **MANUAL post-loop validation step:** run `scripts/validate_ring_graph.py` on the real
-  warehouse (read-only) — build the graph over the $150k+ slice, rank by the label-free ring
-  score, and measure whether prosecuted labels concentrate at the top vs the base rate and
-  vs the composite on the **same H7 held-out labels** (charged > the holdout year). **Promote
-  into the composite only on independent held-out lift** — same build→validate→disposition
-  discipline as every exploratory detector. Honest false-positive modes: office parks, strip
-  malls, apartments, registered-agent addresses, shared lenders.
+- **REAL-DATA VERDICT (validated NEGATIVE — `scripts/validate_ring_graph.py`, June 2026):**
+  ranked all 965,122 $150k+ loans by the label-free ring score; on the H7 held-out labels
+  (164 prosecuted, charged > 2023) it scored **mean percentile 0.48 (≈ random) and 0 hits at
+  every k through 1,000** — while the composite found 1–2 of the same held-out positives at
+  the top (mean percentile 0.24; lift 117×@50, 11.8×@1000). **Multi-relational ring structure
+  does NOT cold-rank prosecuted loans** — even combining address + entity + similarity edges +
+  community detection, the same address-alone-null lesson holds (legit co-location dominates,
+  and the prosecuted/labeled fraud concentrates in big-dollar *single-borrower $/job* schemes,
+  not dense rings). **Kept exploratory, NOT promoted.**
+- **The precise, reconciling finding (the valuable bit):** this does NOT contradict the 3.4×
+  homophily. Homophily = *given a known prosecuted loan*, its nearest look-alikes are enriched
+  for fraud → the graph is a **lead-EXPANSION / traversal tool seeded from a known case**
+  ("find the rest of the ring"). Cold-ranking everyone by structure with no seed surfaces **no
+  new** prosecuted loans. So the graph wins at **retrieval/expansion, not prediction/
+  cold-ranking** — the session thesis again. Use it from the similar-case/known-lead surface,
+  not as a population detector. Honest false-positive modes: office parks, strip malls,
+  apartments, registered-agent addresses, shared lenders.
 
 ## M3 — label construction ✅ (done, the differentiator)
 
