@@ -31,8 +31,9 @@ Two caveats the project insists on:
 ## The thesis: AI/ML wins at *retrieval*, not *prediction*
 
 The recurring finding across every "add AI/ML" experiment: it earns its keep at **retrieval and
-expansion** — finding look-alikes, recovering labels, expanding from a known lead — and *not* at
-**prediction** over a loan's own fields, because prosecuted loans look plausible individually.
+expansion** — finding look-alikes, recovering labels, expanding from a known lead — and mostly
+*not* at **prediction** over a loan's own fields, because prosecuted loans look plausible
+individually. (One honest refinement — see **[The twist](#the-twist-prediction-can-beat-the-composite--with-the-full-feature-union-and-a-caveat)** below: a LightGBM over the *full metadata union* does modestly beat the composite, but partly by learning enforcement patterns.)
 
 ### Three wins (retrieval / expansion)
 
@@ -68,11 +69,10 @@ Reported because reporting them is the point — an honest negative is a result,
   Prosecuted loans aren't industry-mismatched; the fraud is fabricated *dollars*, not a wrong
   industry.
 
-- **Learned PU scorer — no lift (overfit, caught by the holdout).** A PU-bagging scorer over the
-  detector + structured features showed no improvement on a temporal holdout (train ≤2023, test
-  >2023) — and the holdout is what caught it overfitting `forgiveness_ratio`. Kept exploratory.
-  A **second, rigorous retry — a LightGBM scorer (Loop 6)** — is built and exploratory; its real
-  temporal-holdout verdict is generated post-loop (see below).
+- **Learned PU scorer (PU-bagging) — no lift (overfit, caught by the holdout).** A PU-bagging
+  scorer over the detector + structured features showed no improvement on the temporal holdout
+  (train ≤2023, test >2023) — and the holdout is what caught it overfitting `forgiveness_ratio`.
+  Kept exploratory. *(But a richer **LightGBM** retry did beat the composite — see The twist below.)*
 
 - **Graph ring cold-ranking — no lift.** Ranking loans purely by ring/community structure did
   not beat the composite or chance. Combined with the expansion win above: graph structure is a
@@ -81,6 +81,36 @@ Reported because reporting them is the point — an honest negative is a result,
 - **Business-recency (KYB Tier-A) — weak/no independent lift.** Flagging "startup / new business
   / change of ownership" tells didn't concentrate the prosecuted labels — recency is an
   *eligibility* tell, not necessarily a *fraud* tell.
+
+## The twist: prediction *can* beat the composite — with the full feature union (and a caveat)
+
+Loop 6 gave prediction one more rigorous shot: a **regularized LightGBM** over a *composite of
+every signal* — all detectors (the ones that worked and the ones that didn't standalone), graph
+structural features, a geo-normalized pay-ratio percentile, and categoricals (lender, state,
+NAICS, term) — with **nested validation** (entity-grouped k-fold CV tunes; the **>2023 temporal
+holdout is the only headline**). On the holdout (train ≤2023 = 204 positives; test >2023 = 164;
+population 964,918; base rate 0.017%):
+
+| ranking | mean percentile | recall@2000 (lift, 95% CI) | recall@5000 (lift, 95% CI) |
+| --- | --- | --- | --- |
+| **LightGBM** | **0.287** | **8.5% (14)** — 41× **[CI 23.5–67.7×]** | **11.6% (19)** — 22× **[CI 12.9–33.0×]** |
+| Composite (production) | 0.431 (~random) | 2.4% (4) — 12× [2.9–23.5×] | 5.5% (9) — 11× [4.7–17.7×] |
+| PU-bagging (M10) | 0.246 | 1.2% (2) — 6× [0–14.7×] | 5.5% (9) — 11× [4.7–18.8×] |
+
+LightGBM roughly **doubles the composite's recall** in the durable k=500–5000 band, with 95%
+bootstrap CIs that clear 1× decisively and sit above the composite's. (The very top, @100/@250, is
+**noise for everyone** — CIs span 0, 1–3 loans.) An RRF fusion of LightGBM + composite is similarly
+strong (recall@5000 10.4%, CI 10.6–30.6×).
+
+**The caveat that travels with it:** the top features by gain are **`originating_lender`, `term`,
+and `state`** — so the model is substantially learning *which lenders' and geographies' loans get
+prosecuted* (a real GAO fintech-lender signal **and** DOJ prosecution-selection bias), not purely
+"is this loan fraudulent." That's genuinely useful for **lead-ranking**, but it is **not** a guilt
+signal — and it stays **exploratory** (never auto-promoted into the production composite, SIGN-010).
+
+So the thesis refines rather than breaks: retrieval is still where AI clearly wins, but row-wise
+prediction *does* add real, temporally-honest lift — once you hand a GBM the full metadata union —
+with an honest prosecution-bias asterisk. The pure $/job composite was leaving signal on the table.
 
 ## Detectors built, validated, and *not* promoted
 

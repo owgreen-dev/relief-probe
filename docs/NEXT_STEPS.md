@@ -526,7 +526,7 @@ that's the rate-limited manual run below.)
    attribution + no account-creation-to-bypass-gates — see RESPONSIBLE_USE.md). Leads, not
    proof.
 
-## Loop 6 — LightGBM learned scorer ⚗️ (built + nested-validation harness; real verdict generated post-loop)
+## Loop 6 — LightGBM learned scorer ⚗️ (a qualified win: ~2× composite recall@5000 on the >2023 holdout, CI-backed; learns lender/geo enforcement patterns — exploratory)
 
 A **rigorous retry of the row-wise PREDICTION bet** before v1. The session's repeated finding
 is that AI/ML wins at **retrieval**, not row-wise **prediction** — M10's PU-bagging scorer came
@@ -583,13 +583,25 @@ theory that gradient-boosted trees find interactions a linear composite + bagged
   the honest disposition on the real warehouse — the real run is a heavy compute step done
   **OUTSIDE the loop** (the loop only builds + unit-tests the harness's pure parts).
 
-**DISPOSITION: EXPLORATORY (SIGN-010), real verdict generated post-loop (SIGN-008).** The
-LightGBM scorer is never auto-promoted into `all_detectors()` / the production composite —
-promotion is a manual human decision after real-data lift on the temporal holdout. **An honest
-NEGATIVE** (LightGBM does not beat the composite on the >2023 holdout) is an acceptable,
-documented outcome and would CONFIRM the retrieval>prediction thesis more rigorously. The real
-lift@k / recall@k verdict is left as a to-be-filled placeholder (the heavy run on the full
-warehouse is outside the loop — run `scripts/validate_learned_scorer.py` to generate it).
+**REAL VERDICT (post-loop, `scripts/validate_learned_scorer.py` on the full warehouse, with
+2,000-resample bootstrap CIs).** Temporal holdout: train ≤2023 = 204 positives; test >2023 = 164;
+population 964,918; base rate 0.017%.
+
+| ranking | mean pctile | recall@2000 (lift, 95% CI) | recall@5000 (lift, 95% CI) |
+| --- | --- | --- | --- |
+| **lgbm** | **0.287** | **8.5% (14)** · 41× **[23.5–67.7×]** | **11.6% (19)** · 22× **[12.9–33.0×]** |
+| rrf_fusion (lgbm+composite) | 0.324 | 4.9% (8) · 24× [8.8–38.2×] | 10.4% (17) · 20× [10.6–30.6×] |
+| composite | 0.431 | 2.4% (4) · 12× [2.9–23.5×] | 5.5% (9) · 11× [4.7–17.7×] |
+| pu_bagging (M10) | 0.246 | 1.2% (2) · 6× [0–14.7×] | 5.5% (9) · 11× [4.7–18.8×] |
+
+**Verdict: `improved` — a real, CI-backed win in the durable k=500–5000 band** (LightGBM ~2×'s the
+composite's recall; its CIs clear 1× and sit above the composite's; the @100/@250 top is noise for
+everyone, CIs span 0). **Caveat:** top gain features are `originating_lender`, `term`, `state` — so
+it substantially learns *which lenders'/geographies' loans get prosecuted* (GAO fintech-lender
+signal + DOJ prosecution-selection bias), not pure fraud. Useful for lead-ranking, **not** a guilt
+signal. **DISPOSITION: EXPLORATORY (SIGN-010)** — never auto-promoted into `all_detectors()` / the
+production composite; promotion is a manual human decision. The thesis refines: prediction *can*
+add lift with the full metadata union, with a prosecution-bias asterisk.
 
 **DEFERRED to a follow-up loop:** label **augmentation** (deeper multi-defendant LLM extraction;
 homophily soft-PU) — this loop deliberately uses the existing **404 labels / 368 in-slice** so

@@ -21,17 +21,17 @@ A program-integrity pipeline that ranks PPP loans by fraud-risk anomalies, **mea
 
 The differentiator isn't a single model — it's the **discipline**. Every method is stress-tested against dumb baselines and a small, prosecution-biased positive-unlabeled (PU) label set, and the **negatives are reported, not hidden.** The repeated finding:
 
-> **AI/ML here wins at _retrieval_ — finding look-alikes, recovering labels, expanding from a known lead — not at _prediction_ over a loan's own fields,** because prosecuted loans look plausible individually.
+> **AI/ML here wins at _retrieval_ — finding look-alikes, recovering labels, expanding from a known lead — and *mostly* not at _prediction_ over a loan's own fields,** because prosecuted loans look plausible individually. *(Honest exception: a LightGBM over the full metadata union does beat the composite — but partly by learning lender/geo enforcement patterns. See [Results](docs/RESULTS.md).)*
 
 ## Results at a glance
 
 **Does the ranking find prosecuted fraud?** On the labelable 965k-loan **$150k+ slice** (base rate 0.034%), the composite ranking lifts prosecuted loans **23.8× at k=500** — with honest **95% bootstrap CIs** (the eye-catching @100 number rests on *3 loans* and its CI spans zero; the README says so). And it barely beats a one-line `ORDER BY amount/jobs DESC` sort — so the *ratio* is the signal, not the machinery. That self-critique is the point.
 
-**The "add AI" experiment, scored honestly — five negatives, three wins:**
+**The "add AI" experiment, scored honestly — three retrieval wins, five prediction negatives, and one qualified prediction win:**
 
 | Bucket | Outcome |
 | --- | --- |
-| **Prediction / cold-ranking** (re-score a loan's own fields) | LLM plausibility judge ❌ · name↔NAICS embedding mismatch ❌ · PU-bagging learned scorer ❌ *(temporal holdout caught the overfit)* · LightGBM learned scorer ⚗️ *(rich composite + nested validation; verdict generated post-loop)* · graph ring cold-rank ❌ · business-recency ~❌ |
+| **Prediction / cold-ranking** (re-score a loan's own fields) | LLM plausibility judge ❌ · name↔NAICS embedding mismatch ❌ · PU-bagging learned scorer ❌ *(overfit, caught by the holdout)* · **LightGBM learned scorer ⚠️ qualified win** *(~2× composite recall@5000 on the >2023 holdout, CI-backed — but partly learns lender/geo enforcement patterns; exploratory)* · graph ring cold-rank ❌ · business-recency ~❌ |
 | **Retrieval / expansion** (bring new info, exploit relationships) | LLM entity resolution ✅ **+79 labels (+24%)** · similar-case homophily ✅ **3.4×** · graph lead-expansion ✅ |
 
 Full per-method verdicts, written for a reader: **[docs/RESULTS.md](docs/RESULTS.md)** (the blow-by-blow engineering log is [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)).
@@ -135,7 +135,7 @@ A snapshot you (or a fork) can pick up loop-by-loop. Each is scoped and points a
 - **A free KYB provider** *(M)* — implement the `EvidenceProvider` protocol against a **free** source (SAM.gov's government API, or a state Secretary-of-State) as a drop-in for OpenCorporates. *Reuse `kyb/provider.py::EvidenceProvider`.*
 - **The external-evidence (Tier-B) live result** *(S, gated)* — the OpenCorporates client is built; a real `kyb-enrich --live` run (token + legal review) would settle whether precise registration dates concentrate prosecuted loans. *Already built — needs a key.*
 - **More label sources** *(M)* — extract `(business, amount, program)` from CourtListener/RECAP court records with the LLM-extraction pattern, validated by a join back to the public SBA data. *Reuse `labels/llm_resolve.py`.*
-- **A better-regularized learned blend** *(M, built — exploratory)* — a **LightGBM** PU scorer over the rich feature composite (every detector + structural/graph features + a PLODI-style geo-normalized pay-ratio + categoricals) with **nested validation** (grouped-k-fold CV tunes; the >2023 temporal holdout is the headline) is built (`scorer/lgbm.py`, `relief-probe learn-score --model lgbm`). The real holdout verdict is generated post-loop by the read-only `scripts/validate_learned_scorer.py`; it stays exploratory until it earns lift over the composite. **Next:** label augmentation (deeper multi-defendant LLM extraction; homophily soft-PU). *Reuse `scorer/`.*
+- **The LightGBM learned blend** *(built, exploratory — a qualified win)* — a **LightGBM** PU scorer over the rich feature composite (every detector + structural/graph features + a PLODI-style geo-normalized pay-ratio + categoricals) with **nested validation** (grouped-k-fold CV tunes; the >2023 temporal holdout is the headline; `scorer/lgbm.py`, `relief-probe learn-score --model lgbm`). On the real holdout it **~2×'s the composite's recall@5000 (11.6% vs 5.5%, CI-backed)** — but its top features are lender/term/state, so it partly learns enforcement patterns; **exploratory**, not promoted. See [Results](docs/RESULTS.md). **Next:** label augmentation (deeper multi-defendant LLM extraction; homophily soft-PU). *Reuse `scorer/`.*
 - **Real document data** *(M)* — run the vision/ELA layer on a real forged-document corpus (IDNet / "Find it again!") instead of synthetic splices. *Reuse `vision/`.*
 
 ## Data sources
