@@ -66,7 +66,8 @@
         "Verification passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "The real validate_business_recency.py run on the warehouse is done OUTSIDE the loop (no rate limit for Tier A). The loop only builds + unit-tests the harness's pure parts."
     },
     {

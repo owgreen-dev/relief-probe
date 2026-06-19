@@ -153,3 +153,35 @@ OpenCorporates ToS (share-alike + attribution, no account-creation-to-bypass-gat
     conditionals -> use nested f-string `{f'${x:,.0f}' if ...}`; keep reason-append
     f-strings wrapped to <=90 cols.
 - Verify run KYB-003: 202 passed, 6 skipped; ruff clean. ~19-55s.
+- KYB-004 DONE (2026-06-19): CLI `kyb-enrich` + `scripts/validate_business_recency.py`
+  + `tests/test_validate_business_recency.py`.
+  - `cli.py::kyb_enrich`: `--top-k`(25), `--max-concurrency`(4), `--live/--stub`
+    (default --stub = offline StubProvider), `--llm/--no-llm`. --live builds
+    `OpenCorporatesProvider()` then calls `provider._ensure_token()` UP FRONT to
+    fail fast with the clear OPENCORPORATES_TOKEN RuntimeError (caught -> yellow ->
+    Exit(1)) — necessary because `enrich_top_k`'s worker swallows per-lookup
+    exceptions into n_errors, so the token gate would never bubble otherwise.
+    Uses `connect(read_only=True)`; guards empty `signals` (yellow + Exit(1) like
+    triage). Prints telemetry line (provider, enriched, cache hits, n_errors,
+    quota_exhausted, cap_hit) + a results Table (rank/loan/name/st/amount/composite/
+    kyb+/kyb_score/evidence via `_kyb_evidence_cell`) + leads-not-proof disclaimer.
+    --llm narrates the TOP lead's dossier via `synthesize_dossier(top, top.evidence,
+    model=llm_model())`, RuntimeError -> yellow -> Exit(1).
+  - `scripts/validate_business_recency.py`: READ-ONLY (connect(read_only=True), never
+    writes). MIN_AMOUNT=150_000.0, HOLDOUT_YEAR=2023, KS=(50,100,250,500,1000).
+    Pure `recency_score(age)` SHARES `RECENCY_TELLS` with the detector (no drift):
+    startup=3>new=2>change=1, everything else (existing/unanswered/null/blank)=0.0.
+    `rank_slice_by_recency(rows)` sorts (-score, loan_number). main() ranks the
+    $150k+ slice, evaluates ONLY on `temporal_label_split(con, HOLDOUT_YEAR)` test
+    set ∩ slice, prints CONTRAST (mean percentile + recall@k) vs base rate AND vs
+    `composite_ranking(con)` on the SAME held-out labels (skips composite if signals
+    empty). `_report` is copied verbatim from validate_ring_graph.py. Honest caveats
+    in docstring: coarse 4-level ordinal (huge ties at 0) + recency is an
+    ELIGIBILITY tell not a fraud tell (honest NEGATIVE is valid). Benesch/Griffin as
+    MOTIVATION only (SIGN-008, no invented numbers).
+  - test: importlib `spec_from_file_location` load (proves no-extra import); asserts
+    MIN_AMOUNT>=150k, HOLDOUT_YEAR is int; recency_score monotonic + case-insensitive
+    + label-free (0 on existing/unanswered/None/blank) + deterministic; rank orders
+    by score then id. Never touches the real warehouse (pure helpers only, main() not
+    called).
+- Verify run KYB-004: 205 passed, 6 skipped; ruff clean. ~22s.

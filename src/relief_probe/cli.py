@@ -864,6 +864,149 @@ def learn_score(
     )
 
 
+@app.command(name="kyb-enrich")
+def kyb_enrich(
+    top_k: int = typer.Option(
+        25,
+        "--top-k",
+        help="How many top composite leads to enrich with external KYB evidence. "
+        "Hard-capped at 50 (the OpenCorporates free-tier ~50/day cost ceiling) "
+        "regardless of this value.",
+    ),
+    max_concurrency: int = typer.Option(
+        4, "--max-concurrency", help="Max concurrent KYB lookups (bounded I/O fan-out)."
+    ),
+    live: bool = typer.Option(
+        False,
+        "--live/--stub",
+        help="--live hits the OpenCorporates API (needs OPENCORPORATES_TOKEN; "
+        "rate-limited ~50/day). Default --stub uses the offline StubProvider — no "
+        "network, no token.",
+    ),
+    llm: bool = typer.Option(
+        False,
+        "--llm/--no-llm",
+        help="Narrate the top lead's KYB dossier with an LLM (grounded facts only). "
+        "Needs the `agent` extra + ANTHROPIC_API_KEY. Default is deterministic.",
+    ),
+) -> None:
+    """Tier-B KYB — enrich the top composite leads with external registry evidence.
+
+    Pulls the top-k composite leads, looks each up against an external registry
+    (incorporation date / non-registered / address type), and refines the ranking
+    with a grounded KYB bonus. The live provider NEVER sees more than the hard cap
+    (50). Default --stub is fully offline. Every output is a LEAD for review, not
+    evidence of fraud — see RESPONSIBLE_USE.md.
+    """
+    from relief_probe.kyb.enrich import enrich_top_k, synthesize_dossier
+    from relief_probe.kyb.provider import OpenCorporatesProvider, StubProvider
+
+    if live:
+        provider: object = OpenCorporatesProvider()
+        try:
+            # Fail fast with the clear, actionable token message (the enrich loop
+            # itself swallows per-lookup errors, so we gate the token up front).
+            provider._ensure_token()  # type: ignore[attr-defined]
+        except RuntimeError as exc:
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=1) from None
+    else:
+        provider = StubProvider()
+
+    model = None
+    if llm:
+        from relief_probe.config import llm_model
+
+        model = llm_model()
+
+    with connect(read_only=True) as con:
+        n_signals = con.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+        if n_signals == 0:
+            console.print(
+                "[yellow]No signals.[/] Run `relief-probe score` first to populate "
+                "the composite ranking."
+            )
+            raise typer.Exit(code=1)
+
+        result = enrich_top_k(
+            con, provider, top_k=top_k, max_concurrency=max_concurrency
+        )
+        tel = result["telemetry"]
+        if tel["cap_hit"]:
+            console.print(
+                f"[yellow]Capped:[/] requested {tel['requested']:,} but the hard "
+                f"cap is {tel['max_kyb']} — enriching {tel['n_leads']}."
+            )
+        console.print(
+            f"KYB enrichment via [bold]{tel['provider']}[/] over "
+            f"[bold]{tel['enriched']:,}[/] composite leads "
+            f"[dim]({tel['n_cache_hits']} cache hits)[/] …"
+        )
+        if tel["n_errors"]:
+            console.print(
+                f"[yellow]{tel['n_errors']} lookup(s)[/] failed and returned no "
+                "evidence (telemetered, never aborts the batch)."
+            )
+        if tel["quota_exhausted"]:
+            console.print(
+                "[yellow]Quota exhausted[/] mid-run — stopped cleanly; already-"
+                "fetched results are preserved."
+            )
+
+        enriched = result["enriched"]
+        if not enriched:
+            console.print("[yellow]No leads to enrich.[/]")
+            return
+
+        t = Table(title=f"Top leads refined by KYB evidence (top {top_k})")
+        for col in ("rank", "loan_number", "borrower_name", "st", "amount",
+                    "composite", "kyb+", "kyb_score", "evidence"):
+            t.add_column(col)
+        for i, e in enumerate(enriched[:25], start=1):
+            t.add_row(
+                str(i),
+                str(e.loan_number),
+                (e.borrower_name or "")[:24],
+                str(e.state or ""),
+                f"${e.amount:,.0f}" if e.amount is not None else "",
+                f"{e.composite_score:.2f}",
+                f"+{e.kyb_bonus:.2f}" if e.kyb_bonus else "—",
+                f"{e.kyb_score:.2f}",
+                _kyb_evidence_cell(e.evidence),
+            )
+        console.print(t)
+
+        if llm:
+            top = enriched[0]
+            try:
+                console.print(f"[bold]LLM dossier[/] [dim]({model})[/]")
+                console.print(synthesize_dossier(top, top.evidence, model=model))
+            except RuntimeError as exc:
+                console.print(f"[yellow]{exc}[/]")
+                raise typer.Exit(code=1) from None
+
+    console.print(
+        "[dim]A KYB hit is a statistical lead for review, not evidence of fraud — "
+        "a borrower may use a DBA/variant name and a wrong-entity match defames a "
+        "real business. See RESPONSIBLE_USE.md.[/]"
+    )
+
+
+def _kyb_evidence_cell(evidence) -> str:
+    """One-line registry footprint for the results table (grounded, never proof)."""
+    if evidence is None:
+        return "—"
+    if evidence.is_non_registered:
+        return f"not in registry ({evidence.match_confidence:.2f})"
+    parts: list[str] = []
+    if evidence.registration_date:
+        parts.append(f"reg {evidence.registration_date.isoformat()}")
+    if evidence.address_type:
+        parts.append(str(evidence.address_type))
+    parts.append(f"conf {evidence.match_confidence:.2f}")
+    return ", ".join(parts)
+
+
 @app.command(name="serve-mcp")
 def serve_mcp() -> None:
     """Serve the four read-only investigator tools over MCP (stdio).
