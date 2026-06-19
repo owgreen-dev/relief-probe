@@ -1,0 +1,66 @@
+[project]
+name = "relief-probe"
+version = "0.1.0"
+description = "Open-source PPP/SBA pandemic-loan fraud-lead lab — anomaly detection over public loan data, validated against future DOJ fraud prosecutions, with an agentic investigation layer and a document-authenticity (vision) tab."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "duckdb>=1.0",
+    "pandas>=2.0",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "requests>=2.31",
+    "typer>=0.12",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+# Agentic investigation layer + MCP server (kept out of core so the
+# ingest → detector → benchmark path stays lightweight and offline-friendly).
+agent = [
+    "langgraph>=0.2",
+    "langchain-anthropic>=0.3",
+    "mcp>=1.0",
+]
+# Read-only demo dashboard.
+viz = ["streamlit>=1.37"]
+# Learned-scorer experiment (supervised PU-learning vs the transparent baseline).
+ml = ["scikit-learn>=1.4"]
+# Document-authenticity vision tab (ID-forgery + amount-tamper detection).
+vision = ["pillow>=10.0", "scikit-learn>=1.4"]
+# Semantic text embeddings for the naics_name_mismatch detector (the default
+# HashingEmbedder is a dependency-free lexical proxy). Two options:
+#   embeddings-lite — model2vec static embeddings: torch-free, CPU-only, ~30 MB,
+#     near-instant. The right choice on a machine without a GPU (default semantic).
+#   embeddings      — sentence-transformers/torch: higher fidelity, heavy (CUDA/CPU
+#     torch download). Only if you want the live-transformer quality.
+embeddings-lite = ["model2vec>=0.3"]
+embeddings = ["sentence-transformers>=2.2"]
+# Multi-relational fraud-ring graph layer (Loop 4) — pure-python, no torch.
+graph = ["networkx>=3.0"]
+
+[project.scripts]
+relief-probe = "relief_probe.cli:app"
+
+# Test runner + the deps tests import at module load live in a dev group, so
+# `uv run pytest` self-provisions them in the project env (dev groups install by
+# default). pillow/scikit-learn mirror the `vision` extra because
+# tests/test_vision imports PIL unconditionally; the agent extra stays opt-in
+# (its tests use pytest.importorskip and skip cleanly in the core env).
+[dependency-groups]
+dev = ["pytest>=8.0", "pillow>=10.0", "scikit-learn>=1.4"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/relief_probe"]
+
+[tool.ruff]
+line-length = 90
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

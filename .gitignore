@@ -1,0 +1,40 @@
+# Data tree — reproducible from public SBA/DOJ sources, never committed.
+data/
+*.duckdb
+*.duckdb.wal
+
+# Ralph autonomous-dev scaffolding — kept local, not in the public repo
+plans/
+scripts/ralph/
+.claude/commands/
+.claude/*.local.*
+
+# Secrets — never commit API keys.
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Vision datasets + model artifacts (large, fetched/trained locally).
+datasets/
+models/
+*.pt
+*.joblib
+
+# Playwright MCP browser-driving artifacts.
+.playwright-mcp/
+*-screenshot*.png
+dashboard-*.png
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
