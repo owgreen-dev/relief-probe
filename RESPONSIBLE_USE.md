@@ -64,7 +64,7 @@ project does not:
 ## Prosecution pattern comparison — use by borrowers, attorneys, and researchers
 
 The "Prosecution pattern" dashboard tab lets a user look up a loan number and see
-where it sits relative to the statistical pattern of the 325 DOJ-prosecuted PPP loans
+where it sits relative to the statistical pattern of the 404 DOJ-prosecuted PPP loans
 in the public enforcement record. This use case carries specific obligations and
 limitations that differ from the investigator-facing layers of this project.
 
@@ -75,7 +75,7 @@ lender, borrower address type) against:
 
 - The full $150k+ loan population (965,122 loans) — to show where the loan sits in
   the overall distribution.
-- The 325 entity-resolved DOJ-prosecuted loans — to show what signals, if any, the
+- The 404 entity-resolved DOJ-prosecuted loans — to show what signals, if any, the
   loan shares with cases that were actually charged.
 - The prosecuted population in the same NAICS and state — to show industry-specific
   context.
@@ -89,7 +89,7 @@ of guilt, innocence, eligibility, or legal jeopardy.
   advice or as an assessment of legal risk. If you received a PPP loan and have
   concerns about your legal exposure, consult a licensed attorney.
 - **It is not a risk determination.** A loan that shares signals with prosecuted cases
-  is not at elevated legal risk on that basis alone. The 325 prosecuted loans are a
+  is not at elevated legal risk on that basis alone. The 404 prosecuted loans are a
   tiny, prosecution-biased sample — they over-represent large, egregious, easy-to-prove
   cases. DOJ prosecution decisions depend on factors entirely outside this data:
   evidence quality, witness availability, prosecutorial capacity, district priorities,
@@ -108,10 +108,11 @@ of guilt, innocence, eligibility, or legal jeopardy.
   be aware that the loan file contains their personal name, and any output referencing
   their loan references a natural person. Do not use this tool to make adverse decisions
   about individuals.
-- **Entity resolution may be imperfect.** The 325 prosecuted labels were resolved from
-  DOJ press releases with ~84-88% precision. A small number of labels may be incorrect
-  matches. A match to the `fraud_cases` table reflects the entity resolver's best
-  judgment, not a court finding.
+- **Entity resolution may be imperfect.** The 404 prosecuted labels were resolved from
+  DOJ press releases in two tiers — 325 by exact name+amount matching (~84-88% precision)
+  plus 79 by an amount-gated LLM step (~91-99%). A small number may be incorrect matches.
+  A match to the `fraud_cases` table reflects the entity resolver's best judgment, not a
+  court finding.
 
 ### Who this is appropriate for
 
@@ -142,7 +143,7 @@ of guilt, innocence, eligibility, or legal jeopardy.
 
 ### The prosecution selection bias — the most important limitation
 
-The 325 prosecuted loans are not a random sample of PPP fraud. They are the cases that
+The 404 prosecuted loans are not a random sample of PPP fraud. They are the cases that
 were (a) large enough to attract DOJ attention, (b) egregious enough to be provable,
 (c) in districts with capacity and appetite to prosecute, and (d) resolved to a loan
 number via entity resolution with sufficient corroboration. True PPP fraud is estimated

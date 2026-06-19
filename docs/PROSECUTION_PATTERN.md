@@ -14,12 +14,12 @@ The prosecution pattern comparison takes a loan number and produces four outputs
 
 2. **Signal overlap** — which, if any, of the three production detectors fired on
    this loan, and how the resulting scores compare to the distribution of scores
-   among the 325 prosecuted loans vs the broader population.
+   among the 404 prosecuted loans vs the broader population.
 
 3. **Industry context** — how the loan compares to other loans in the same NAICS
    code and state, and what the prosecution rate looks like in that NAICS+state cell.
 
-4. **Prosecution pattern summary** — aggregate statistics about the 325 prosecuted
+4. **Prosecution pattern summary** — aggregate statistics about the 404 prosecuted
    loans (dollar distribution, NAICS concentration, state concentration, lender
    patterns) shown alongside where this loan falls in those distributions.
 
@@ -33,21 +33,24 @@ The prosecution pattern comparison takes a loan number and produces four outputs
   quality, witness cooperation, district prosecutorial priorities, statute of
   limitations strategy, or the specific facts alleged in any case.
 
-## The 325 labels — what they represent
+## The 404 labels — what they represent
 
-The 325 prosecuted loans in this dataset were identified by:
+The 404 prosecuted loans in this dataset were identified by:
 
 1. Scraping all DOJ press releases tagged "COVID-Related Fraud" or containing
    PPP/EIDL loan keywords (3,414 releases total).
-2. Entity-resolving defendant business names to loan numbers in the SBA FOIA file
-   using normalized name + state + amount corroboration.
-3. Hand-validating a sample, yielding estimated precision of ~84-88% (95% CI:
-   72-92%).
+2. **Exact entity resolution** — matching defendant business names to loan numbers in
+   the SBA FOIA file using normalized name + state + amount corroboration. This yields
+   **325 loans**, hand-validated at ~84-88% precision (95% CI: 72-92%).
+3. **LLM-adjudicated resolution** — an amount-gated LLM step that recovers fuzzy
+   matches the exact resolver misses (legal-suffix/spelling variants, sole-props where
+   the release names the owner, not the LLC). This adds **79 loans** at ~91-99%
+   precision, for **404 total**.
 
-These 325 represent a **tiny, prosecution-biased slice** of estimated PPP fraud:
+These 404 represent a **tiny, prosecution-biased slice** of estimated PPP fraud:
 - SBA-OIG estimates total PPP fraud at ~$200B
 - DOJ has charged ~3,500 defendants totaling a few billion dollars
-- The 325 that resolved to loan numbers are a subset of those charges
+- The 404 that resolved to loan numbers are a subset of those charges
 - The prosecution record over-represents large, egregious, single-borrower schemes
 
 A loan that shares signals with the prosecuted population is statistically similar
