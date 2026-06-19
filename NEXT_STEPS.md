@@ -475,8 +475,11 @@ LLM importorskip); ruff clean. Warehouse: **404 labeled loans** (325 exact + 79 
   at *retrieval* (label-recovery + ring-surfacing). See [docs/LLM_RESEARCH.md](docs/LLM_RESEARCH.md).
 
 **Next up (prioritized):**
-1. **Precision-check the 79 `amount+llm` labels** (H4-style stratified hand-sample) before
-   fully trusting them in the headline benchmark — they're tagged + reversible until then.
+1. ✅ **DONE — precision-checked the 79 `amount+llm` labels.** Audited all 79 vs DOJ release
+   text (`scripts/validate_amount_llm_precision.py`): **~91–99% precision (point ~94–96%;
+   72 TP / 6 ambiguous / 1 FP)** — ≥ the exact tier (84–88%); the exact-dollar gate is a strong
+   anchor. conf≥0.95 (68/79) is essentially clean; the FP + most ambiguous sit at conf<0.90
+   (a 0.95 threshold → near-spotless, −11 labels). Phase-3 win holds. See docs/LABEL_PRECISION.md.
 2. **PU-bagging learned scorer** (the `ml` extra) consuming the embedding/structured features
    + the grown label set — the planned modeling step; validate by held-out-positive recall@k.
 3. **Agentic-KYB external-evidence avenue** (deferred option 🅑) — registration-date-vs-loan-date

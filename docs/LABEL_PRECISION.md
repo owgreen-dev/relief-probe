@@ -67,3 +67,61 @@ correct; only that metadata field is noisy.)
 Stratified sample + evidence join is a few lines of DuckDB over `fraud_cases` ⋈ `loans`
 ⋈ `press_releases` (seed 0); adjudication is manual. No code shipped — this is an
 analysis artifact.
+
+---
+
+# `amount+llm` tier precision (the LLM-recovered labels)
+
+The M8 Phase-3 LLM entity-resolution pass added **79** labels marked
+`match_method='amount+llm'` (blocked by an exact dollar match, then an LLM adjudicated the
+NAME — recovering DBA / sole-prop / misspelled matches the exact resolver misses). This
+audits all 79 against their DOJ release text (`scripts/validate_amount_llm_precision.py`
+joins each to its loan fields + the matched release body).
+
+## Method
+
+All 79 audited (no sampling — small enough). Each adjudicated true / ambiguous / false by
+checking, against the matched release: does the exact loan amount appear, and does the
+release genuinely charge the entity behind this loan (vs the dollar amount colliding with an
+unrelated figure and the LLM over-matching the name)?
+
+## Result
+
+**Precision ≈ 91% (strict, ambiguous = FP) to ≈ 99% (lenient, ambiguous = TP); point
+~94–96%** (72 TP, 6 ambiguous, 1 FP). Wilson 95% CI ≈ **[83%, 99%]**. This is **comparable
+to or better than the exact tier (84–88%)** — the exact-dollar gate is a strong precision
+anchor, and the LLM only adjudicates the name on top of it.
+
+- **72 true positives** — exact business name + exact loan amount in the release, incl. the
+  fuzzy categories the exact resolver can't reach: legal-suffix/spelling variants
+  (`5TH Marketing Group` → "Fifth Marketing Group, LLC"; `TRK COSTRUCTION`[sic] → "TRK
+  Construction") and person-name sole-props (`CCF Acoustical Systems` → "Craig C. Franck").
+- **6 ambiguous** — the exact amount matches and the release names the *defendant/scheme*
+  but not the business by name (I AND F Construction, Tomi Japanese Seafood, AWE Watersports,
+  EHT Esan, Navatek CFD, Trex Enterprise). Mostly legitimate sole-prop recoveries (release
+  names the individual), but the business link is unconfirmed from the release alone.
+- **1 false positive** — `UGOTEM` ($983,000): the amount collided with a *wages* figure in a
+  "Spite the Movie, LLC" case; different entity, lower confidence (0.78).
+
+### Per-tier (the actionable finding)
+
+| LLM confidence | count | precision |
+| --- | --- | --- |
+| ≥ 0.95 | 68 | essentially clean (all audited TP) |
+| < 0.90 | 7 | holds the 1 FP + most ambiguous |
+
+**The 1 FP and most ambiguous concentrate at confidence < 0.90.** Raising the
+`resolve-labels-llm --threshold` from 0.7 to ~0.95 would yield a near-spotless tier at the
+cost of ~11 labels — the precision/recall lever (revisit before any label-aware tuning, H7).
+
+## Implication
+
+The Phase-3 win holds: the +79 labels are **high precision** (≥91%), so growing the set
+325 → 404 was a real, low-noise recall gain (1 FP in 79 ≈ negligible next to the exact
+tier's ~12–16%). Kept as-is (tagged + reversible); the conf≥0.95 lever is available if a
+spotless benchmark is wanted.
+
+## Reproduce
+
+`uv run python scripts/validate_amount_llm_precision.py` — joins every `amount+llm` label to
+its loan + release text and prints the evidence per label; adjudication is manual.
