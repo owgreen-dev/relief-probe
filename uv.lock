@@ -2149,6 +2149,9 @@ embeddings = [
 embeddings-lite = [
     { name = "model2vec" },
 ]
+graph = [
+    { name = "networkx" },
+]
 ml = [
     { name = "scikit-learn" },
 ]
@@ -2174,6 +2177,7 @@ requires-dist = [
     { name = "langgraph", marker = "extra == 'agent'", specifier = ">=0.2" },
     { name = "mcp", marker = "extra == 'agent'", specifier = ">=1.0" },
     { name = "model2vec", marker = "extra == 'embeddings-lite'", specifier = ">=0.3" },
+    { name = "networkx", marker = "extra == 'graph'", specifier = ">=3.0" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "pillow", marker = "extra == 'vision'", specifier = ">=10.0" },
@@ -2186,7 +2190,7 @@ requires-dist = [
     { name = "streamlit", marker = "extra == 'viz'", specifier = ">=1.37" },
     { name = "typer", specifier = ">=0.12" },
 ]
-provides-extras = ["agent", "viz", "ml", "vision", "embeddings-lite", "embeddings"]
+provides-extras = ["agent", "viz", "ml", "vision", "embeddings-lite", "embeddings", "graph"]
 
 [package.metadata.requires-dev]
 dev = [

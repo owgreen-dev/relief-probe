@@ -37,6 +37,8 @@ vision = ["pillow>=10.0", "scikit-learn>=1.4"]
 #     torch download). Only if you want the live-transformer quality.
 embeddings-lite = ["model2vec>=0.3"]
 embeddings = ["sentence-transformers>=2.2"]
+# Multi-relational fraud-ring graph layer (Loop 4) — pure-python, no torch.
+graph = ["networkx>=3.0"]
 
 [project.scripts]
 relief-probe = "relief_probe.cli:app"

@@ -1,85 +1,65 @@
 # Ralph Progress Log
 
-Milestone: Loop 3 — lender_concentration detector (`ralph/loop3-lender-concentration`)
-Verify: `uv run --extra vision pytest && uvx ruff check .`
+Milestone: Loop 4 — multi-relational fraud-ring GRAPH layer (NetworkX, `graph` extra)
+Branch: `m7-tier1-and-m8-ai-followups` (deps live only here, not main)
+Verify: `uv run --extra vision --extra graph pytest && uvx ruff check .`
 
-## This milestone (Loop 3)
+## This milestone (Loop 4)
 
-Build the **lender_concentration** detector (GAO: a few nonbank/fintech auto-approval
-lenders originated a disproportionate share of fraud-case loans). DESIGN: UNSUPERVISED +
-LABEL-FREE (SIGN-012) — never read fraud_cases. Peer-relative across lenders: per
-originating_lender (>= min_loans), compute the RATE of program-rule-suspicious loans
-(label-free: amount_per_job >= per-employee cap), robust-z that rate across lenders,
-flag every loan from an extreme-tail lender. Signal = "this loan came from a lender
-whose whole book is unusually full of cap-busting loans" (catches even individually-clean
-loans the per-loan detectors miss). Features L3-001..L3-003 in plans/prd.json.
+Build a graph that links loans by RELATIONAL structure and test whether ring/community
+structure concentrates prosecuted loans — the relational thesis (fraud here is
+coordinated, not row-wise). THESIS + honest callback: three prediction attempts were
+NEGATIVES (LLM reranker, name<->NAICS mismatch, PU-bagging scorer); the two relational
+wins were LLM entity-resolution (+79 labels) and a name+amount+area similarity homophily
+test (~3.4x). The single-edge-type `duplicate_address_ring` (address alone) was already
+NULL (legit co-location dominates), so this loop's BET is that COMBINING edge types
+(address + entity + similarity) + community detection separates real rings from benign
+clustering. An honest NEGATIVE is acceptable. Features G-001..G-004 in plans/prd.json.
 
-CRITICAL: register in `registry.exploratory_detectors()`, NOT `all_detectors()` (SIGN-010);
-promotion is manual after real-data validation. Never touch the real data/ warehouse
-(SIGN-007). No invented numbers (SIGN-008). Label-free (SIGN-012).
+CRITICAL: graph FEATURES must be LABEL-FREE (never read fraud_cases to compute a
+feature/signal — prove with an empty-fraud_cases test); only the G-003 validation SCRIPT
+reads labels (like benchmark). Register the ring detector in
+`registry.exploratory_detectors()` ONLY (SIGN-010) — NOT all_detectors(); promotion is a
+MANUAL human decision AFTER this loop. Never touch the real data/ warehouse in tests
+(SIGN-007: seed tmp_path). No invented numbers in docs (qualitative). networkx behind the
+`graph` extra, imported lazily.
 
 ## Codebase Patterns
 
 - Detectors: subclass `detectors/base.py::Detector`, `run(con) -> list[Signal]`,
   READ-ONLY, graceful on empty input. New detectors -> `exploratory_detectors()`.
-- REUSE: `stats.robust_z(x, min_mad=...)` (median/MAD z), `payroll_cap.py` per-employee
-  cap constants ($20,833 general; $29,167 for NAICS prefix '72'). loans has
-  `originating_lender`, `servicing_lender_name`, `jobs_reported`, `current_approval_amount`,
-  `naics_code`.
-- Production composite = naics_cohort_outlier + payroll_cap_exceedance +
-  multiple_funded_loans. exploratory_detectors() = duplicate_address_ring, amount_anomaly,
-  establishment_overcount (all validated weak/negative), + (this loop) lender_concentration.
-- Composite = `MAX(percentile(score)) + 0.5*(n-1)`; `run_all(con, detectors=None)` defaults
-  to all_detectors(), pass an explicit list for exploratory.
-- Tests seed a tmp_path warehouse via `connect(tmp_path/...)`; for this loop, LEAVE
-  fraud_cases EMPTY to prove the detector is label-free.
+- REUSE (exact): `detectors/_address.py::normalize_address` (building-level key, ZIP[:5]);
+  `detectors/_entity.py::entity_key` (normalized name@address); `similarity/core.py`
+  (blocking-first name+$+area look-alikes — reuse its blocking + the embedders) and
+  `embeddings.py` (`HashingEmbedder` offline default; `Model2VecEmbedder` = embeddings-lite);
+  `benchmark/core.py::temporal_label_split(con, year)` + `ranking_metrics` +
+  `positive_rank_stats`; `stats.py::robust_z`.
+- loans has: loan_number, borrower_name, borrower_address?, borrower_city, borrower_state,
+  borrower_zip (mix of 5-digit + ZIP+4 -> [:5]), naics_code, current_approval_amount,
+  jobs_reported, originating_lender. fraud_cases has charge_date (DATE) for the holdout.
+- Scale by SPARSITY: GROUP BY a normalized key in Python, link WITHIN the group, CAP groups
+  above max_group (a shared key with thousands must not form a clique). ~965k slice nodes.
 - Style: `from __future__ import annotations`, typed, docstrings, ruff line-length 90.
-  Commit ONE feature per iteration. Mirror tests/test_detectors.py.
+  Commit ONE feature per iteration. Mirror existing tests (tests/test_ring_detector.py,
+  tests/test_similarity.py for stub-embedder seeding + tmp_path warehouse patterns).
 
 ## Environment (IMPORTANT — do not regress)
 
-- `uv run pytest` self-provisions via `[dependency-groups] dev`.
-- `uvx ruff check .` is the lint command (`uv run ruff` is NOT installed).
-- The `agent` extra stays OPT-IN; LLM/MCP tests must `pytest.importorskip`.
+- Verify: `uv run --extra vision --extra graph pytest && uvx ruff check .` (the `graph`
+  extra = networkx; pure-python, no torch). `uvx ruff check .` is the lint command.
+- The `agent` / `embeddings` / `embeddings-lite` extras stay OPT-IN; their tests
+  `pytest.importorskip`. networkx is opt-in too (lazy import + clear RuntimeError).
+- This loop runs on the PR branch `m7-tier1-and-m8-ai-followups` (deps not on main).
 
-## Key Files (Loop 3)
+## Key Files (Loop 4)
 
-- NEW: `src/relief_probe/detectors/lender_concentration.py`
-- `src/relief_probe/detectors/registry.py` (add to exploratory_detectors)
-- NEW: `tests/test_lender_concentration.py`
-- `README.md`, `NEXT_STEPS.md` (qualitative, no numbers; record EIDL-dropped note)
+- NEW: `src/relief_probe/graph/__init__.py`, `src/relief_probe/graph/build.py`,
+  `src/relief_probe/graph/features.py`
+- NEW: `tests/test_graph_build.py`, `tests/test_graph_features.py`
+- NEW: `scripts/validate_ring_graph.py`
+- `src/relief_probe/detectors/registry.py` (add the ring detector to exploratory_detectors)
+- `pyproject.toml` (add the `graph` extra), `README.md`, `NEXT_STEPS.md` (qualitative)
 
 ## Learnings (append as you go)
 
-- L3-001 DONE: `detectors/lender_concentration.py` + `tests/test_lender_concentration.py`
-  (6 tests). Design: group usable loans (originating_lender non-null, jobs>=1,
-  amount>0) by lender; per-lender suspicious_rate = (# loans with amount_per_job >=
-  per-NAICS cap) / loan_count; only lenders with >= min_loans (default 100);
-  `stats.robust_z` the rates across lenders with `min_mad` floor; flag EVERY loan of a
-  lender with z >= min_z (default 3.0). Score = lender's robust-z (one value per book).
-  Reused `payroll_cap.FIRST_DRAW_CAP`/`FOOD_ACCOMMODATION_CAP` for the label-free cap.
-- robust_z GOTCHA: raw MAD==0 -> NaN regardless of min_mad. If clean peers all share
-  rate 0 the cross-lender MAD degenerates and nothing fires. Test seeds peers with
-  *varied* small rates (0, 0.1, 0.2) so MAD>0 and BADBANK (0.9) lands in the tail.
-- Label-free proof: tests leave `fraud_cases` EMPTY (connect() creates it) and assert
-  the detector still fires (SIGN-012). Detector never queries any label table.
-- ruff: `zip(...)` needs `strict=True` (B905). Full verify: 115 passed, ruff clean.
-- L3-002 DONE: registered `LenderConcentrationDetector()` in
-  `registry.exploratory_detectors()` only (all_detectors() UNCHANGED — SIGN-010);
-  updated the registry module docstring (lists it as built+tested, pending real-data
-  validation) and removed it from the "Planned" line. Added 4 tests to
-  tests/test_registry.py: in exploratory_detectors() & not all_detectors();
-  get_detector resolves it; default run_all omits it; explicit
-  run_all(detectors=[*all_detectors(), *exploratory_detectors()]) counts it.
-- Registry test seed gotcha: the DEFAULT detector uses min_loans=100, so the
-  integration seed gives every lender 100 loans (BADBANK 90% bust, clean peers at
-  varied 0/5/10% so cross-lender MAD>0). Full verify: 119 passed, ruff clean.
-- L3-003 DONE (docs only, no code): README exploratory-detector catalog now has a
-  `lender_concentration` bullet (unsupervised/peer-relative/label-free design, why
-  label-free = avoid prosecution-bias leakage + leakage, GAO motivation, NAICS-72
-  industry-mix false-positive mode, NO numbers). NEXT_STEPS.md gained a "Loop 3" section:
-  built exploratory; recorded the EIDL↔PPP DROP (public COVID-EIDL = DATA Act/USAspending
-  format, no per-loan jobs/NAICS field — do not re-attempt); added the MANUAL post-loop
-  step (score real warehouse with the detector included, measure lift+overlap, promote
-  only on independent lift). Qualitative only. Full verify: 119 passed, ruff clean.
-- ALL Loop 3 tasks (L3-001..L3-003) now pass.
+- (none yet — first iteration)
