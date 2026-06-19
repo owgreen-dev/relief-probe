@@ -13,7 +13,7 @@ Reproducible by a stranger from public federal files (SBA FOIA loan data + DOJ/S
 
 ![relief-probe dashboard — Similar cases tab](docs/images/similar-cases.png)
 
-*The dashboard's "Similar cases" tab: given an already-charged loan, find its look-alikes by business-name + dollar + area similarity — surfacing the rest of a coordinated ring. A resemblance is a lead for review, not proof.*
+*The dashboard's "Similar cases" tab — shown on **synthetic demo data** (fictitious sample-company names). Given a loan, find its look-alikes by business-name + dollar + area similarity, surfacing a coordinated ring and flagging which neighbors are already prosecuted. A resemblance is a lead for review, not proof. (On the real warehouse, prosecuted loans' nearest look-alikes are ~3.4× enriched for fraud — see Results.)*
 
 ## What it is
 

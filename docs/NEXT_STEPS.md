@@ -386,10 +386,10 @@ Built the three the user picked (1, 3, 4 — skipped the agentic-KYB agent):
 - **Real-data verdict (validated, FULL sweep):** the full pass adjudicated **8,274**
   amount-blocked candidates in ~50 min and recovered **+72 new labels** (a first capped
   400-candidate run had found 7) — **325 → 404 distinct labeled loans (+24%)**, 79 total
-  marked `amount+llm`. Exactly the fuzzy categories the exact resolver can't reach: legal-
-  suffix/spelling variants (*5TH Marketing Group ↔ "Fifth Marketing Group"*, *SLIFCO
-  ELECTRIC, L.L.C. ↔ "Slifco Electric, LLC"*) and person-name sole-props (*CCF Acoustical
-  Systems → "Craig C. Franck"*, *Unimentors LLC → "Mark Ethan Jermain a/k/a …"*). Every
+  marked `amount+llm`. Exactly the fuzzy categories the exact resolver can't reach (examples
+  anonymized): legal-suffix/spelling variants (a number-word ↔ its spelled-out form; an
+  `L.L.C.` ↔ `LLC` punctuation variant) and person-name sole-props (the release names the
+  *owner* individually, or an `a/k/a` alias, rather than the LLC on the loan). Every
   match amount-gated; most at conf 0.99. A real recall win on the binding constraint —
   +24% labels. (To revert: `DELETE FROM fraud_cases WHERE match_method='amount+llm'`.)
 - **Honest caveat / next rigor step:** these `amount+llm` labels are NOT yet hand-validated

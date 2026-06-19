@@ -32,24 +32,25 @@ TP). Wilson 95% CI ≈ **[72%, 92%]**. So roughly **1 in 8 labels is a false pos
 
 ### Representative false positives
 
-- **"SELF EMPLOYED" (WV)** — a generic borrower-name placeholder matched to a release
-  about an individual's $20,832 loan. Name collision on a non-name.
-- **"KANSAS CITY LLC" (KS)** — matched the word "Kansas City" (the *city* dateline) in a
-  release charging three named men; the business name is coincidental.
-- **"PHOENIX BEHAVIORAL HEALTH" in NJ *and* WI** — two different loans both matched to one
-  release about a single PA defendant (no-state tier). At most one could be real; both are
+*(Borrower/defendant names anonymized below; the failure modes are the point.)*
+
+- **A generic placeholder borrower-name** (a "SELF EMPLOYED"-style field value) matched a
+  release about an individual's small loan. Name collision on a non-name.
+- **A business whose name contains a city word** matched that city appearing as the
+  *dateline* of a release charging unrelated, separately-named defendants — coincidental.
+- **A same-named behavioral-health business in two states** both matched one release about a
+  single out-of-state defendant (no-state tier). At most one could be real; both are
   wrong-state.
-- **"COALITION FOR SOCIAL JUSTICE AND REFORM"** — matched a general MOU/announcement
-  release (alleged amount mis-parsed as $860B), not a charging document for this entity.
+- **A civic/non-profit-sounding name** matched a general announcement release (alleged
+  amount mis-parsed into the billions), not a charging document for that entity.
 
 ### A confirmed *true*-positive pattern (not an FP)
 
 Many loans share `alleged_amount = $14.7M` — these are **one real 22-defendant PPP ring**
-(a single release naming distinctly-named co-defendants: CONTINUING SUCCESS, D PARKER
-HOLDINGS, INFINITE EDUCATION SERVICES, RK PAINTING, …). Correctly fanned out to each
-charged business. (Side note: a few labels carry a mis-extracted `alleged_amount` — e.g.
-Fujisoft America's real $1.05M settlement stored as $1.8B — but the *label itself* is
-correct; only that metadata field is noisy.)
+(a single release naming many distinctly-named co-defendant businesses). Correctly fanned
+out to each charged business. (Side note: a few labels carry a mis-extracted
+`alleged_amount` — e.g. one company's real ~$1M settlement stored as ~$1.8B — but the
+*label itself* is correct; only that metadata field is noisy.)
 
 ## Implications
 
@@ -92,16 +93,18 @@ unrelated figure and the LLM over-matching the name)?
 to or better than the exact tier (84–88%)** — the exact-dollar gate is a strong precision
 anchor, and the LLM only adjudicates the name on top of it.
 
+*(Examples are anonymized/paraphrased; the category is the point.)*
+
 - **72 true positives** — exact business name + exact loan amount in the release, incl. the
-  fuzzy categories the exact resolver can't reach: legal-suffix/spelling variants
-  (`5TH Marketing Group` → "Fifth Marketing Group, LLC"; `TRK COSTRUCTION`[sic] → "TRK
-  Construction") and person-name sole-props (`CCF Acoustical Systems` → "Craig C. Franck").
+  fuzzy categories the exact resolver can't reach: legal-suffix/spelling variants (a
+  number-word → its spelled-out form; a typo'd `COSTRUCTION` → `Construction`) and
+  person-name sole-props (the release names the *owner* individually rather than the LLC).
 - **6 ambiguous** — the exact amount matches and the release names the *defendant/scheme*
-  but not the business by name (I AND F Construction, Tomi Japanese Seafood, AWE Watersports,
-  EHT Esan, Navatek CFD, Trex Enterprise). Mostly legitimate sole-prop recoveries (release
-  names the individual), but the business link is unconfirmed from the release alone.
-- **1 false positive** — `UGOTEM` ($983,000): the amount collided with a *wages* figure in a
-  "Spite the Movie, LLC" case; different entity, lower confidence (0.78).
+  but not the business by name (e.g. a restaurant, a watersports LLC, an engineering firm).
+  Mostly legitimate sole-prop recoveries (release names the individual), but the business
+  link is unconfirmed from the release alone.
+- **1 false positive** — one loan ($983,000): the amount collided with a *wages* figure in
+  an unrelated case naming a different entity; lower confidence (0.78).
 
 ### Per-tier (the actionable finding)
 
