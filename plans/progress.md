@@ -69,4 +69,20 @@ OpenCorporates ToS (share-alike + attribution, no account-creation-to-bypass-gat
 
 ## Learnings (append as you go)
 
-- (none yet — first iteration)
+- KYB-001 DONE (2026-06-19): `detectors/business_recency.py` ::BusinessRecencyDetector,
+  detector_id='business_recency'. Ordinal label-free score over
+  `business_age_description`: "Startup, Loan Funds will Open Business"=3.0 (Feb-15-2020
+  eligibility red flag), "New Business or 2 years or less"=2.0, "Change of Ownership"=1.0.
+  NEVER fires on "Existing or more than 2 years old", "Unanswered", null, or blank
+  (SQL filters NULL/blank; the RECENCY_TELLS dict simply omits the non-firing values, so
+  any unrecognized value is silently quiet — no missing-as-suspicious). Match is
+  `.strip().casefold()` against dict keys. Evidence carries business_age_description,
+  date_approved, matched_tell, reason.
+- Registered in `registry.exploratory_detectors()` ONLY (SIGN-010); all_detectors()
+  unchanged; get_detector resolves it; registry module docstring updated.
+- Test pattern reused from test_ring_detector.py: tmp_path `warehouse.connect`, executemany
+  INSERT, one row per business_age_description value + null/blank edge cases. Label-free
+  proof = run on empty fraud_cases and assert exact scores {STARTUP:3,NEW:2,CHANGE:1};
+  `fraud_cases` table is created by `connect()` (warehouse/db.py) and starts empty.
+- Verify run: `uv run --extra vision --extra graph pytest && uvx ruff check .` →
+  181 passed, 6 skipped; ruff clean. ~21s.

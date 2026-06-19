@@ -21,7 +21,8 @@
         "Verification passes (uv run --extra vision --extra graph pytest && uvx ruff check .)"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "The cheap, high-value core: a free, no-API, label-free signal validatable on the held-out labels with zero rate limit. Motivation: Benesch 53% fabricated/backdated; PPP required operation by Feb-15-2020. CRITICAL: 'Unanswered' must NOT fire."
     },
     {

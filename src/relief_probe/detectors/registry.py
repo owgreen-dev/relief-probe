@@ -49,6 +49,16 @@ promotes any that show it:
   is that COMBINING edge relations + community structure separates real rings from
   benign co-location. Built + tested; PENDING real-data validation
   (scripts/validate_ring_graph.py) — an honest NEGATIVE is an acceptable outcome.
+* ``business_recency`` — the Tier-A KYB (know-your-business) external-evidence proxy
+  (Loop 5): a LABEL-FREE signal over the borrower-declared ``business_age_description``
+  (100% populated). Fires on the new/startup/change tells — "Startup, Loan Funds will
+  Open Business" (near-explicit Feb-15-2020 eligibility red flag) strongest, then "New
+  Business or 2 years or less", then "Change of Ownership" — with an ordinal score, and
+  NEVER on "Existing or more than 2 years old" or "Unanswered" (no missing-as-
+  suspicious). Motivation: Benesch 53% fabricated/backdated; Griffin et al. (J. Finance
+  2023). Built + tested; PENDING real-data validation
+  (scripts/validate_business_recency.py) — an honest NEGATIVE (recency is an eligibility
+  tell, not necessarily a fraud tell) is an acceptable outcome.
 
 Kept for investigation/evidence and opt-in scoring; not in the headline ranking.
 
@@ -59,6 +69,7 @@ from __future__ import annotations
 
 from relief_probe.detectors.amount_anomaly import AmountAnomalyDetector
 from relief_probe.detectors.base import Detector
+from relief_probe.detectors.business_recency import BusinessRecencyDetector
 from relief_probe.detectors.duplicate_address_ring import DuplicateAddressRingDetector
 from relief_probe.detectors.establishment_overcount import EstablishmentOvercountDetector
 from relief_probe.detectors.lender_concentration import LenderConcentrationDetector
@@ -94,6 +105,7 @@ def exploratory_detectors() -> list[Detector]:
         LenderConcentrationDetector(),
         NaicsNameMismatchDetector(),
         MultiRelationalRingDetector(),
+        BusinessRecencyDetector(),
     ]
 
 
