@@ -14,16 +14,30 @@ see ``RESPONSIBLE_USE.md`` for the FCRA-adjacency / ToS / defamation surface.
 
 from __future__ import annotations
 
+from relief_probe.kyb.enrich import (
+    MAX_KYB,
+    EnrichedLead,
+    enrich_top_k,
+    evidence_refinement,
+    synthesize_dossier,
+)
 from relief_probe.kyb.provider import (
     EvidenceProvider,
     KybEvidence,
     OpenCorporatesProvider,
+    QuotaExhaustedError,
     StubProvider,
 )
 
 __all__ = [
+    "MAX_KYB",
+    "EnrichedLead",
     "EvidenceProvider",
     "KybEvidence",
     "OpenCorporatesProvider",
+    "QuotaExhaustedError",
     "StubProvider",
+    "enrich_top_k",
+    "evidence_refinement",
+    "synthesize_dossier",
 ]

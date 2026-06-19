@@ -56,6 +56,14 @@ ACCEPT_CONFIDENCE = 0.6
 NON_REGISTERED_CONFIDENCE = 0.5
 
 
+class QuotaExhaustedError(RuntimeError):
+    """A provider has hit its rate/quota limit (e.g. the free-tier ~50/day or an
+    HTTP 429). Raised so an enrichment run can stop cleanly mid-fan-out and
+    preserve whatever it had already fetched, rather than burning retries or
+    crashing — see :func:`relief_probe.kyb.enrich.enrich_top_k`.
+    """
+
+
 @dataclass(frozen=True)
 class KybEvidence:
     """One external registry's read of a borrower (a lead, never proof).

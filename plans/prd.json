@@ -51,7 +51,8 @@
         "Verification passes"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "Mirror the M7 triage cost-bounding exactly (hard cap + bounded concurrency + telemetry). The 'agentic' part is the optional LLM dossier narrator — grounded, key-gated, never invents. Default path is fully deterministic + offline."
     },
     {

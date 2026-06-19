@@ -113,3 +113,43 @@ OpenCorporates ToS (share-alike + attribution, no account-creation-to-bypass-gat
     `kyb_cache_dir()` + `opencorporates_token()`. Tests set RELIEF_PROBE_DATA_DIR to
     tmp (autouse fixture) so the cache writes under tmp_path, never real data/.
 - Verify run KYB-002: 189 passed, 6 skipped; ruff clean. ~16s.
+- KYB-003 DONE (2026-06-19): `kyb/enrich.py`. `MAX_KYB=50` (free-tier ~50/day cost
+  cap, not a benchmark number), `DEFAULT_MAX_CONCURRENCY=4`, `KYB_WEIGHT=0.5`,
+  `PPP_ELIGIBILITY_DATE=2020-02-15`.
+  - `enrich_top_k(con, provider, *, top_k, max_concurrency=4, cache=None) ->
+    {'enriched':[EnrichedLead...], 'telemetry':{...}}`. Pulls
+    `composite_ranking(con, limit=k)` (slim `_Lead` rows: loan_number, name, state,
+    amount, composite_score), clamps k to MAX_KYB, fans out over a bounded
+    ThreadPoolExecutor mirroring LlmJudge (seq when max_concurrency==1 or 1 lead).
+    Telemetry: requested, max_kyb, cap_hit (requested>MAX_KYB), n_leads, enriched,
+    n_cache_hits, n_errors, quota_exhausted, provider.
+  - Quota: provider raises `QuotaExhaustedError` (NEW in provider.py, exported) ->
+    worker sets a `threading.Event` stop flag + quota_exhausted=True and returns
+    None; workers that haven't started yet see stop and skip cleanly (return None).
+    Already-fetched results preserved. Deterministic only at max_concurrency=1
+    (the quota test uses it: raise_after=4 -> enriched==4, calls==5).
+  - Cache: optional `cache` dict (loan_number -> KybEvidence|None) consulted before
+    fetch, written after each SUCCESS. Errors are NOT cached (a re-run may retry).
+    Pass the same dict across runs -> second run is offline, n_cache_hits==n_leads,
+    provider.fetch not re-invoked. None-unknown IS cached (counts as a hit).
+  - Errors: any provider exception (except QuotaExhaustedError) -> n_errors++ and
+    the lead still appears with evidence=None (one flaky lookup never aborts batch).
+  - `evidence_refinement(evidence) -> (bonus, reason)`, confidence-scaled, GROUNDED:
+    is_non_registered -> KYB_WEIGHT*conf; registration_date > Feb-15-2020 ->
+    KYB_WEIGHT*conf (eligibility tell); non-commercial address_type (residential/PO
+    box/mailbox substrings) -> 0.5*KYB_WEIGHT*conf; None/before-date -> 0.0 (never
+    manufacture a signal from absence). `kyb_score = composite_score + bonus`;
+    enriched sorted by kyb_score desc (refines the ranking).
+  - `synthesize_dossier(lead, evidence, *, model=None)`: model=None -> deterministic
+    grounded summary (`_deterministic_dossier`, no key/net, ends "lead for review,
+    not proof"); model set -> lazy `langchain_anthropic`, clear RuntimeError on
+    missing `agent` extra OR ANTHROPIC_API_KEY (mirrors similarity/explain).
+  - tests/test_kyb_enrich.py: seed n loans + 1 signal each (distinct score ->
+    clean composite ranking); `_CountingStub` wraps StubProvider, counts calls,
+    optional raise_after for quota. Covers refinement units, end-to-end+cap_hit,
+    empty warehouse, quota stop-clean, cache-hit-no-refetch, error-telemetered,
+    dossier deterministic (no key) + LLM gate (importorskip-conditional).
+  - LINT GOTCHAS (fixed): ruff UP031 bans `%`-format even inside f-string
+    conditionals -> use nested f-string `{f'${x:,.0f}' if ...}`; keep reason-append
+    f-strings wrapped to <=90 cols.
+- Verify run KYB-003: 202 passed, 6 skipped; ruff clean. ~19-55s.
