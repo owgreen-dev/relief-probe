@@ -458,23 +458,38 @@ The build is complete and above-median on breadth + engineering + honesty, but t
 
 Also still open: M4.1 learned PU scorer (`ml` extra); real vision data + CNN vs ELA.
 
-### In progress
-- **Done this session:** H2 full ingest (11.3M loans) + composite hardening
-  (`min_mad` floor, percentile-normalised composite, slice-aware `benchmark`) + **H3
-  bootstrap CIs on lift@k**. README headline regenerated on the real full data.
-- **Done this session:** H6 — built the genuinely independent `duplicate_address_ring`
-  detector, then validated it on real data: it's orthogonal (Jaccard ≈ 0.02) but has
-  **no lift** against the prosecuted labels at any threshold, so it was **dropped from
-  the default composite** (kept as an exploratory detector). Honest negative result.
-- **Done this session:** **M7 Tier 1** built AND validated on real data — `triage/` package
-  (heuristic + concurrent/robust Haiku `Judge`s, hard cap, transparent re-rank) +
-  `relief-probe triage --top-k N [--llm] [--gate] [--concurrency C]` + validation gate, all
-  deterministic-first/key-gated (18 tests; suite green). Real `--llm --gate` run on the
-  11.3M warehouse / 325 labels: **honest NEGATIVE** (no lift; gate regressed by one loan) —
-  kept built + opt-in, NOT promoted. See the Tier-1 real-data verdict above.
-- **Next up:** Tier 2 (press-release corroboration) or reframe Tier 1 as an explanation aid;
-  then H7 temporal holdout before any label-aware tuning. No promotion until something
-  earns measurable lift.
+### Resume here (state as of the AI-features session)
+
+**Branch / PR:** all work is on `m7-tier1-and-m8-ai-followups`, pushed, open as **PR #1**
+(private `owgreen-dev/relief-probe`). Working tree clean; 162 tests (156 passed + 6 skipped
+LLM importorskip); ruff clean. Warehouse: **404 labeled loans** (325 exact + 79 `amount+llm`).
+
+**What this session did (the "add AI" arc — 3 negatives, 2 positives, all honest):**
+- M7 Tier 1 LLM triage reranker — **NEGATIVE** (null; kept opt-in).
+- M8 Phase 1 — PU-honest metrics + RRF; exposed the real ceiling (**9% coverage**).
+- M8 Phase 2 — name↔NAICS embedding mismatch detector — **NEGATIVE** (lift <1.0×).
+- M8 Phase 3 — LLM-adjudicated entity resolution — **POSITIVE**: +79 labels (325→404, +24%).
+- M9 — similar-case retrieval — **POSITIVE**: homophily lift ~3.4× (fraud clusters; tool
+  surfaces rings). 4th dashboard tab is the demo.
+- **Meta-finding:** AI failed at *prediction/re-scoring* the loans' own attributes, succeeded
+  at *retrieval* (label-recovery + ring-surfacing). See [docs/LLM_RESEARCH.md](docs/LLM_RESEARCH.md).
+
+**Next up (prioritized):**
+1. **Precision-check the 79 `amount+llm` labels** (H4-style stratified hand-sample) before
+   fully trusting them in the headline benchmark — they're tagged + reversible until then.
+2. **PU-bagging learned scorer** (the `ml` extra) consuming the embedding/structured features
+   + the grown label set — the planned modeling step; validate by held-out-positive recall@k.
+3. **Agentic-KYB external-evidence avenue** (deferred option 🅑) — registration-date-vs-loan-date
+   gap via OpenCorporates; strongest published fraud evidence, heaviest external/legal surface.
+4. **H7 temporal holdout** before ANY label-aware tuning.
+
+**Open housekeeping:**
+- **Rotate `ANTHROPIC_API_KEY`** — it was pasted into the session transcript (treat as leaked).
+- The `amount+llm` labels make the default benchmark a *partial* LLM sweep at 404; for a clean
+  benchmark either accept it (marked + reversible) or `DELETE FROM fraud_cases WHERE
+  match_method='amount+llm'` and re-run fully. Logs in `data/triage_runs/`.
+- Portfolio: consider a public sanitized version + a README-leads-with-the-story pass + a
+  short companion writeup (see the session's portfolio assessment).
 
 ## Watch-outs
 
