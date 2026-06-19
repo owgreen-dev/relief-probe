@@ -81,7 +81,8 @@
         "Verification passes"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "Docs only. Leave Tier-A numbers as a placeholder / to-be-filled (the real run is outside the loop). Bake in the legal/ToS surface honestly — this is the most legally-sensitive layer in the project."
     }
   ]

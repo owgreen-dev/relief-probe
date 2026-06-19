@@ -185,3 +185,25 @@ OpenCorporates ToS (share-alike + attribution, no account-creation-to-bypass-gat
     by score then id. Never touches the real warehouse (pure helpers only, main() not
     called).
 - Verify run KYB-004: 205 passed, 6 skipped; ruff clean. ~22s.
+- KYB-005 DONE (2026-06-19): docs only — no code change. Three files:
+  - `README.md`: cataloged `business_recency` under the EXPLORATORY detectors (after
+    `fraud_ring_graph`); ordinal label-free tells, Feb-15-2020 eligibility framing, SIGN-010/
+    SIGN-012, honest-NEGATIVE (eligibility tell ≠ fraud tell) + coarse-ordinal caveat. Added a
+    new `## KYB layer` section (Tier-A free/no-API vs Tier-B external OpenCorporates machinery,
+    the optional agentic LLM dossier, the relational/external-evidence thesis, the
+    deterministic-first/key-gated/exploratory disposition + the autonomy boundary). Added
+    `kyb-enrich` to Quickstart. NO benchmark/lift numbers (SIGN-008).
+  - `RESPONSIBLE_USE.md`: new KYB section before the PU-labels section — FCRA-adjacency for
+    named individuals/sole-props, defamation/FP harm from wrong-entity matches (verify the
+    stored `raw_ref`), OpenCorporates ToS (share-alike + attribution via raw_ref, rate limits,
+    no account-creation-to-bypass-gates), leads-not-proof.
+  - `NEXT_STEPS.md`: new `## Loop 5 — agentic-KYB external evidence` section (Tier-A built
+    exploratory; Tier-B machinery-only; the two MANUAL post-loop steps — (1) run
+    `scripts/validate_business_recency.py` for the Tier-A held-out verdict, no rate limit;
+    (2) the Tier-B `kyb-enrich --live` run, ~50/day, legally reviewed). Benesch 53% + Griffin
+    et al. cited as MOTIVATION only. Also de-staled the two old "deferred, not built" KYB
+    references (the M8 follow-ups note + the prioritized "Next up" item 3).
+  - Numbers left UNFILLED on purpose (SIGN-008 — real Tier-A numbers come from the post-loop
+    script run; Tier-B makes no claim, autonomy boundary). No github_issue on this task.
+- Verify run KYB-005: 205 passed, 6 skipped; ruff clean. ~25s (docs-only, suite unchanged).
+- ALL KYB-001..005 now pass — Loop 5 complete.

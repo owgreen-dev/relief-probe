@@ -394,8 +394,9 @@ Built the three the user picked (1, 3, 4 — skipped the agentic-KYB agent):
 
 +23 tests across the three phases (suite now 155); ruff clean.
 
-**Next AI follow-ups (deferred, not built):** the agentic-KYB evidence agent (option 🅑 —
-SoS registration-date / address-type / footprint, the Griffin et al. indicators); run the
+**Next AI follow-ups:** the agentic-KYB evidence agent (option 🅑 — SoS registration-date /
+address-type / footprint, the Griffin et al. indicators) is now **built (Loop 5, exploratory)**
+— see the "Loop 5 — agentic-KYB external evidence" section below; run the
 embedding detector with the real semantic model + validate lift; sweep `resolve-labels-llm`
 past the 400-cap for more recall; PU-bagging learned scorer consuming these features.
 
@@ -466,6 +467,52 @@ The "where's the trained model?" step, done with the H7 discipline up front. New
   enforcement, because prosecuted loans look plausible and the labels are few/biased.
   Reinforces the session meta-finding: AI/ML earns its keep at *retrieval* (label recovery,
   ring-surfacing), not at *prediction* over these loans. 5 new tests (suite 167); ruff clean.
+
+## Loop 5 — agentic-KYB external evidence ⚗️ (Tier-A built exploratory; Tier-B machinery only)
+
+The remaining genuinely-untried avenue (deferred option 🅑). The session meta-finding is that
+AI/ML wins at **retrieval / bringing NEW information**, not at row-wise prediction over the
+loans' own fields (four honest prediction negatives). KYB — verifying a borrower against
+**external** sources (does it exist? registered before the loan? real address?) — is the one
+untried "new information" avenue, and the angle with the strongest published fraud evidence.
+**Cited as MOTIVATION, not as our results:** Benesch reports **53%** of PPP fraud involved a
+fabricated/backdated business; Griffin, Kruger & Mahajan (*J. Finance* 2023) validate
+"non-registered business" + "formed right before the loan" as fraud indicators. Built in two
+tiers with a hard autonomy boundary:
+
+- **Tier A — `business_recency` detector (free, no API, validatable now).** Label-free
+  (SIGN-012) signal over `business_age_description` (100% populated) + `date_approved`: fires
+  on "Startup, Loan Funds will Open Business" (a near-explicit Feb-15-2020 eligibility red
+  flag) > "New Business or 2 years or less" > "Change of Ownership"; never on "Existing…",
+  "Unanswered", null, or blank. Registered in `registry.exploratory_detectors()` only
+  (SIGN-010); built + unit-tested offline.
+- **Tier B — `kyb/` external-evidence machinery (built against a deterministic stub ONLY).**
+  `EvidenceProvider` → registration date / non-registered flag / address type; `StubProvider`
+  (offline default) + token-gated `OpenCorporatesProvider` (lazy `requests`, name/state
+  disambiguation, cache-to-disk for share-alike/attribution, clear `RuntimeError` without
+  `OPENCORPORATES_TOKEN`). `enrich_top_k` fans out over the top-K composite leads under a hard
+  cap (`MAX_KYB`) + bounded concurrency + telemetry, stops clean on quota exhaustion. Optional
+  key-gated LLM dossier (`synthesize_dossier`) narrates only grounded facts. CLI
+  `relief-probe kyb-enrich --top-k N [--live] [--llm]` (default `--stub` = offline).
+
+**AUTONOMY BOUNDARY (critical):** the loop FULLY validated Tier A offline but only built the
+Tier-B **machinery** against the deterministic stub — it makes **no Tier-B claim**. Numbers
+are deliberately left unfilled (SIGN-008 — no invented metrics; the real runs are outside the
+loop).
+
+**MANUAL post-loop steps (the real verdicts, done OUTSIDE the loop):**
+1. **Tier-A held-out verdict — run `scripts/validate_business_recency.py`** (read-only) on the
+   real warehouse: ranks the $150k+ slice by the label-free recency score and reports held-out
+   (H7 temporal-split) concentration vs the base rate AND vs the production composite on the
+   same labels. **No rate limit** — this can be run anytime. An honest NEGATIVE (recency is an
+   *eligibility* tell, not necessarily a *fraud* tell; coarse 4-level ordinal with large ties)
+   is a valid, documented outcome. Fill the Tier-A numbers in only after this run.
+2. **Tier-B real OpenCorporates run — `relief-probe kyb-enrich --live`** (needs
+   `OPENCORPORATES_TOKEN`): **rate-limited ~50/day**, so it enriches only a small top-K and
+   must be **legally reviewed** before use (FCRA-adjacency for named individuals/sole-props,
+   defamation/false-positive harm from wrong-entity matches, OpenCorporates ToS share-alike +
+   attribution + no account-creation-to-bypass-gates — see RESPONSIBLE_USE.md). Leads, not
+   proof.
 
 ## Hardening / rigor backlog (post-M6, from the objective self-review)
 
@@ -565,9 +612,12 @@ LLM importorskip); ruff clean. Warehouse: **404 labeled loans** (325 exact + 79 
    extra) and validated out-of-time: **composite beats the learned scorer** on held-out
    (>2023) labels — an honest negative (the model overfit `forgiveness_ratio` on early
    labels; the holdout caught it). Kept exploratory, not promoted. See M10 above.
-3. **Agentic-KYB external-evidence avenue** (deferred option 🅑) — registration-date-vs-loan-date
-   gap via OpenCorporates; strongest published fraud evidence, heaviest external/legal surface.
-   The remaining genuinely-untried avenue.
+3. ✅ **BUILT (Loop 5, exploratory) — agentic-KYB external-evidence avenue** (option 🅑):
+   Tier-A `business_recency` detector (free, label-free) + Tier-B OpenCorporates machinery
+   (registration-date-vs-loan-date gap / non-registered / address type) against a deterministic
+   stub. Strongest published fraud evidence, heaviest external/legal surface. The MANUAL
+   post-loop verdicts (Tier-A validation script; Tier-B `--live` run) are pending — see the
+   "Loop 5 — agentic-KYB external evidence" section below.
 
 **Open housekeeping:**
 - **Rotate `ANTHROPIC_API_KEY`** — it was pasted into the session transcript (treat as leaked).

@@ -19,6 +19,37 @@ public data — nothing more. Read this before using or publishing any output.
   is a **review lead, not proof of fraud or coordination**; never present co-located
   borrowers as a scheme on the basis of the score alone.
 
+## KYB (know-your-business) external evidence — the most legally-sensitive layer
+
+The KYB layer (Loop 5) verifies a borrower against **external** sources — a business
+registration date, a non-registered flag, an address type — to refine a lead. Because it
+names real businesses and, sometimes, real people, it carries obligations the rest of the
+project does not:
+
+- **FCRA-adjacency for named individuals / sole-proprietors.** Scoring a *registered entity*
+  against public corporate-registry facts is one thing; scoring a *named individual* or a
+  sole-proprietor (where the business name **is** a person) edges toward consumer-report
+  territory. Treat any signal attached to a natural person as especially sensitive, never use a
+  KYB output for an adverse decision about a person, and consult counsel before any
+  individual-level use. This tool makes no eligibility, credit, or guilt determination.
+- **Defamation / false-positive harm from wrong-entity matches.** A KYB result is only as good
+  as the entity match behind it — two companies can share a name across states. The provider is
+  built precision-first (it returns a low-confidence lead or `None` rather than assert a
+  "non-registered" claim it cannot stand behind), but a wrong match could attach a damaging
+  registration/address finding to the **wrong** business. Always verify the matched record
+  (the stored `raw_ref`) against primary sources before acting on or publishing it. A KYB
+  finding is a **review lead, not proof** — and recency/registration is at most an *eligibility*
+  tell, not evidence of fraud.
+- **OpenCorporates Terms of Service.** The Tier-B provider uses the OpenCorporates API under its
+  free-tier terms: **share-alike + attribution** (we store the company URL as `raw_ref` so any
+  republished fact can carry its required attribution), **rate limits** (the run is hard-capped
+  and cached; do **not** create multiple accounts or otherwise act to bypass the gates or
+  quotas), and honor any usage restriction the data carries. The real `--live` run is a manual,
+  legally-reviewed step, never an autonomous one.
+- **Every output is a lead for review, not proof.** As everywhere else in this project, a KYB
+  signal flags a loan for a human to investigate against primary records. It is not a fraud
+  determination.
+
 ## The labels are positive-unlabeled (PU) and biased
 
 Confirmed/charged fraud is a **tiny (<0.1%) and non-random sample** of estimated
