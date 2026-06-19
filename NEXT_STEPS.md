@@ -468,7 +468,7 @@ The "where's the trained model?" step, done with the H7 discipline up front. New
   Reinforces the session meta-finding: AI/ML earns its keep at *retrieval* (label recovery,
   ring-surfacing), not at *prediction* over these loans. 5 new tests (suite 167); ruff clean.
 
-## Loop 5 — agentic-KYB external evidence ⚗️ (Tier-A built exploratory; Tier-B machinery only)
+## Loop 5 — agentic-KYB external evidence ⚗️ (Tier-A validated WEAK/no-lift; Tier-B machinery built, real run manual)
 
 The remaining genuinely-untried avenue (deferred option 🅑). The session meta-finding is that
 AI/ML wins at **retrieval / bringing NEW information**, not at row-wise prediction over the
@@ -500,14 +500,21 @@ Tier-B **machinery** against the deterministic stub — it makes **no Tier-B cla
 are deliberately left unfilled (SIGN-008 — no invented metrics; the real runs are outside the
 loop).
 
-**MANUAL post-loop steps (the real verdicts, done OUTSIDE the loop):**
-1. **Tier-A held-out verdict — run `scripts/validate_business_recency.py`** (read-only) on the
-   real warehouse: ranks the $150k+ slice by the label-free recency score and reports held-out
-   (H7 temporal-split) concentration vs the base rate AND vs the production composite on the
-   same labels. **No rate limit** — this can be run anytime. An honest NEGATIVE (recency is an
-   *eligibility* tell, not necessarily a *fraud* tell; coarse 4-level ordinal with large ties)
-   is a valid, documented outcome. Fill the Tier-A numbers in only after this run.
-2. **Tier-B real OpenCorporates run — `relief-probe kyb-enrich --live`** (needs
+**Tier-A REAL-DATA VERDICT (validated June 2026 — `scripts/validate_business_recency.py`):**
+**weak / no independent lift.** 55,493 of the 965k $150k+ loans fire a recency tell. Ranked
+against the 164 held-out (>2023) prosecuted labels, business-recency **matches the composite's
+held-out hits exactly** (1 hit @50/100/250/500, 2 @1000 — identical recall@k and lift at every
+k → it's catching the *same* loans, not new ones), and its overall concentration is much
+weaker (mean percentile **0.449 ≈ random** vs the composite's **0.241**). So the Benesch
+"fabricated/new business" pattern is *real* (some prosecuted loans do fire the startup tell),
+but **most prosecuted PPP fraud is "Existing" businesses doing $/job fraud** — recency alone is
+a partial signal with **no independent lift over the composite**. **Kept exploratory, NOT
+promoted** — same disposition as the other weak exploratory detectors. (Tier-B's precise
+OpenCorporates registration date may separate the genuinely-fabricated subset better, but
+that's the rate-limited manual run below.)
+
+**Remaining MANUAL step (Tier-B, done OUTSIDE the loop):**
+- **Tier-B real OpenCorporates run — `relief-probe kyb-enrich --live`** (needs
    `OPENCORPORATES_TOKEN`): **rate-limited ~50/day**, so it enriches only a small top-K and
    must be **legally reviewed** before use (FCRA-adjacency for named individuals/sole-props,
    defamation/false-positive harm from wrong-entity matches, OpenCorporates ToS share-alike +
