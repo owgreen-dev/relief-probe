@@ -141,3 +141,18 @@ MANUAL human decision AFTER this loop. Never touch the real data/ warehouse in t
   `ring_score` (monotonic, matches formula) + `rank_loans_by_structure` (score-desc,
   ties broken by loan_number). No conftest/pythonpath existed for scripts/, hence the
   importlib-by-path approach.
+
+- **G-004 (docs) DONE.** Qualitative-only docs, no benchmark numbers (SIGN-008).
+  README: added `graph/` as **Layer 9** (⚗️ exploratory) to the architecture block, and a
+  full `fraud_ring_graph` catalog entry under the exploratory-detectors list — multi-
+  relational design (address+entity+similarity edges + community detection), WHY a graph
+  (the two relational wins say fraud here is coordinated/relational), the HONEST
+  address-alone-null callback (`duplicate_address_ring` was NULL; this combines edges),
+  label-free + sparse-by-blocking + lazy-`graph`-extra notes, exploratory-only disposition
+  (SIGN-010), and the legitimate-co-location false-positive modes (office parks, strip
+  malls, apartments, registered agents, shared lenders). NEXT_STEPS: added a "Loop 4 —
+  multi-relational fraud-ring graph layer" section after Loop 3 — the relational thesis, the
+  three edge types, the structural features/detector, LABEL-FREE proof, the address-alone
+  callback, and the MANUAL post-loop validation step (run scripts/validate_ring_graph.py;
+  promote only on independent held-out lift vs the composite).
+- All Loop-4 features (G-001..G-004) now pass. Verify: 175 passed, 6 skipped; ruff clean.

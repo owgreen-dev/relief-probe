@@ -117,6 +117,48 @@ pattern the per-loan detectors miss.
   was already registered there — no promotion). Mirrors the H6 / `establishment_overcount`
   discipline: built, validated, honest negative.
 
+### Loop 4 — multi-relational fraud-ring graph layer ⚗️ (built + tested; real-data validation is MANUAL)
+
+A new **graph** layer (`graph/` package, NetworkX behind the `graph` extra) that tests the
+**relational thesis**: fraud over these PPP loans is *coordinated/relational*, not row-wise.
+Three *prediction* attempts this project were honest NEGATIVES (LLM reranker, name↔NAICS
+mismatch, PU-bagging scorer) because individual loans look plausible; the two *relational*
+wins were LLM entity-resolution (+79 labels) and name+amount+area homophily (~3.4×). This
+loop generalizes the relational signal into a graph + community detection.
+- **`graph/build.py::build_loan_graph`** — builds a NetworkX graph over the $150k+ slice
+  (read-only) with **three label-free edge types**: **address** (shared normalized
+  building-level key, `detectors/_address.normalize_address`), **entity** (same resolved
+  borrower / duplicate funding, `detectors/_entity.entity_key`), and **similarity** (high
+  name + amount-band + same-area look-alikes, reusing the `similarity` blocking + an offline
+  `HashingEmbedder`). **Sparse-by-blocking:** link only *within* a shared-key group and SKIP
+  groups above `max_group` so a giant shared key (a common address/lender) can't form a
+  million-edge clique. NetworkX imported lazily (clear RuntimeError if the `graph` extra is
+  absent).
+- **`graph/features.py::graph_structural_features`** — label-free structural features per
+  loan: component size, degree, per-edge-type degree, distinct borrowers in the component,
+  and **community size** (NetworkX `greedy_modularity_communities`, run only on components
+  above a small threshold to stay cheap).
+- **`graph/detector.py::MultiRelationalRingDetector`** (`fraud_ring_graph`) — fires on every
+  loan in a component spanning **≥2 distinct edge types AND ≥2 distinct borrowers**, scored
+  by `log1p(distinct_borrowers) + log1p(community_size)` (label-free, monotonic in ring
+  strength). Registered in `registry.exploratory_detectors()` **only** (SIGN-010);
+  `all_detectors()` UNCHANGED.
+- **LABEL-FREE (SIGN-012):** features/detector never read `fraud_cases` — proven by an
+  empty-`fraud_cases` test. Only `scripts/validate_ring_graph.py` reads labels, and only to
+  *evaluate* (H7 temporal holdout), never to compute the structural score.
+- **HONEST address-alone-null callback (do not re-litigate):** `duplicate_address_ring`
+  (shared address *alone*) was already validated NULL — legitimate co-location dominates — so
+  the BET here is that *combining* edge types + communities separates real rings from benign
+  clustering. An honest NEGATIVE (ring structure no better than the composite/chance) is an
+  acceptable, documented outcome.
+- **MANUAL post-loop validation step:** run `scripts/validate_ring_graph.py` on the real
+  warehouse (read-only) — build the graph over the $150k+ slice, rank by the label-free ring
+  score, and measure whether prosecuted labels concentrate at the top vs the base rate and
+  vs the composite on the **same H7 held-out labels** (charged > the holdout year). **Promote
+  into the composite only on independent held-out lift** — same build→validate→disposition
+  discipline as every exploratory detector. Honest false-positive modes: office parks, strip
+  malls, apartments, registered-agent addresses, shared lenders.
+
 ## M3 — label construction ✅ (done, the differentiator)
 
 **Scraper ✅ done** (`labels/doj.py`, `relief-probe fetch-labels`): pages the DOJ

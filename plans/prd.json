@@ -65,7 +65,8 @@
         "Verification passes"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "Docs only. Record the relational thesis + the address-alone-null callback so it is not re-litigated. Keep all numbers out (they come from the manual G-003 run)."
     }
   ]
