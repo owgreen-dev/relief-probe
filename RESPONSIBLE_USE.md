@@ -1,8 +1,15 @@
 # Responsible use
 
+> **Disclaimer.** relief-probe is a **research and educational** project. It is **not**
+> legal, financial, or investigative advice, and it makes **no accusation of fraud or
+> wrongdoing against any person or business.** Scores are statistical *leads for review of
+> public data*, never determinations of guilt. **All examples, screenshots, and demos in
+> this repository use anonymized or synthetic (fictitious) data** — no individual or business
+> is named as fraudulent. Read the rest of this document before using or publishing any output.
+
 relief-probe produces **statistical leads for review, not evidence of fraud.** A high
 score means a loan looks anomalous relative to peers or matches a rule pattern in
-public data — nothing more. Read this before using or publishing any output.
+public data — nothing more.
 
 ## What the scores are (and are not)
 
@@ -60,15 +67,18 @@ fraud — it over-represents large, egregious, *prosecuted* cases. Therefore:
 - Lift@k and recall@k describe how well the ranking surfaces *already-charged* fraud —
   a lower bound on, and biased view of, true performance.
 
-## Named examples
+## Named examples (anonymized)
 
-Public files name real borrowers. For any named example, prefer borrowers who have
-**already been criminally charged** (a matter of public record) or anonymize the row.
-Aggregate metrics are fine. Do not present any individual as fraudulent on the basis
-of a score.
+The underlying SBA files name real borrowers, but **this repository names none** as
+fraudulent: every example in the docs is described generically, and the dashboard
+screenshot uses **synthetic, fictitious company names** (Northwind / Contoso / Proseware /
+…) on demo data, not real loans. When *using* the tool on real data, keep it that way —
+prefer aggregate metrics or already-charged (public-record) cases, anonymize any row you
+share, and never present an individual as fraudulent on the basis of a score.
 
 ## Scope
 
-This is a research/portfolio artifact for surfacing review leads and demonstrating
-methodology. It is not an enforcement tool and makes no eligibility or guilt
-determinations.
+This is a **research / portfolio / educational** artifact for surfacing review leads and
+demonstrating methodology. It is **not** an enforcement, compliance, credit, or
+eligibility tool; it makes no guilt, eligibility, or creditworthiness determination about
+any person or business; and it is not a substitute for professional or legal advice.
