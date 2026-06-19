@@ -87,3 +87,31 @@ MANUAL human decision AFTER this loop. Never touch the real data/ warehouse in t
   edges + a `_SpyCon` wrapper to prove no `fraud_cases` query (label-free).
 - LABEL-FREE proven: `test_builder_never_queries_fraud_cases` runs on empty
   fraud_cases and asserts no executed SQL contains "fraud_cases".
+
+- **G-002 (features + exploratory detector) DONE.**
+  `src/relief_probe/graph/features.py::graph_structural_features(graph, *,
+  min_community_size=5)` → `dict[loan_number, {component_size, degree,
+  n_address_edges, n_entity_edges, n_similarity_edges, distinct_borrowers,
+  community_size}]`. All LABEL-FREE (reads only the graph shape + the `norm_name`
+  node attr). Community detection (`nx.community.greedy_modularity_communities`)
+  runs ONLY on components >= min_community_size; smaller components are their own
+  community (community_size == component_size). nx imported LAZILY (mirrors build).
+- `src/relief_probe/graph/detector.py::MultiRelationalRingDetector` (detector_id
+  `fraud_ring_graph`): builds the graph, computes features, fires on every loan in
+  a component spanning >= `min_edge_types` (default 2) distinct edge relations AND
+  >= `min_borrowers` (default 2) distinct borrowers. Score =
+  `log1p(distinct_borrowers) + log1p(community_size)` (label-free, monotonic in
+  ring strength). Ctor takes `embedder` + `build_kwargs` for injection/tests.
+- Registered in `exploratory_detectors()` ONLY (SIGN-010) — `all_detectors()`
+  UNCHANGED; `get_detector('fraud_ring_graph')` resolves it; registry docstring
+  updated. The detector module imports `build_loan_graph`/`graph_structural_features`
+  (neither imports nx at module load) + `Detector`/`Embedder`, so registry imports
+  fine WITHOUT the `graph` extra; `import networkx` happens inside `run()`.
+- TEST DESIGN (`tests/test_graph_features.py`): the ring needs >=2 edge types AND
+  >=2 distinct borrowers, which a single identical-name address clique CANNOT give
+  (distinct_borrowers would be 1). So plant a duplicate-funding PAIR (same name+addr
+  → entity+address+similarity edges) PLUS a DISTINCT borrower at the same building
+  (address edge) → component spans 3 relations, 2 borrowers. Added an ADDRESS-ONLY
+  pair (2 borrowers, 1 relation) to prove the edge-type gate (the address-alone-null
+  callback: shared address alone does NOT fire). Reused the one-hot `_StubEmbedder`
+  + `_SpyCon` from test_graph_build. Label-free proven via the spy (no fraud_cases).

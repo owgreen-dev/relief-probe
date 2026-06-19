@@ -36,7 +36,8 @@
         "Verification passes"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-06-19",
       "notes": "Mirror the H6/Loop1/Loop2/Loop3 disposition. The detector is the per-loan surface of the graph; features.py is the reusable structural-feature provider. Keep community detection cheap (only on components above a small threshold). LABEL-FREE is the cardinal rule — prove it with an empty-fraud_cases test."
     },
     {
