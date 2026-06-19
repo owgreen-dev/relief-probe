@@ -791,6 +791,12 @@ def learn_score(
         "leakage-free out-of-time split, H7).",
     ),
     bags: int = typer.Option(50, "--bags", help="PU-bagging estimators."),
+    model: str = typer.Option(
+        "pu-bagging",
+        "--model",
+        help="Learned model: `pu-bagging` (M10 baseline) or `lgbm` (the Loop 6 "
+        "LightGBM nested-validation harness; needs the `ml` extra).",
+    ),
 ) -> None:
     """Learned PU scorer vs the composite on a temporal holdout (needs the `ml` extra).
 
@@ -799,7 +805,23 @@ def learn_score(
     charged later — the honest test of whether fitting to labels beats the
     unsupervised composite on FUTURE enforcement. Recall-on-known-fraud, not a fraud
     rate. See RESPONSIBLE_USE.md.
+
+    `--model lgbm` runs the EXPLORATORY LightGBM nested-validation harness instead:
+    grouped-k-fold CV tunes (entity-grouped, charges<=holdout_year), the temporal
+    holdout is the honest headline, and lgbm/pu-bagging/composite/rrf-fusion are
+    compared on the SAME held-out positives. EXPLORATORY only (SIGN-010).
     """
+    model = model.lower().replace("_", "-")
+    if model not in ("pu-bagging", "lgbm"):
+        console.print(
+            f"[yellow]Unknown --model {model!r}.[/] Use `pu-bagging` or `lgbm`."
+        )
+        raise typer.Exit(code=1)
+
+    if model == "lgbm":
+        _learn_score_lgbm(holdout_year)
+        return
+
     from relief_probe.scorer.validate import run_holdout_validation
 
     with connect() as con:
@@ -861,6 +883,65 @@ def learn_score(
     console.print(
         f"Verdict: [{styles.get(res['verdict'], 'yellow')}]{res['verdict']}[/]  "
         "[dim](out-of-time; recall-on-known-fraud on a PU sample).[/]"
+    )
+
+
+def _learn_score_lgbm(holdout_year: int) -> None:
+    """`learn-score --model lgbm`: the EXPLORATORY LightGBM nested-validation run.
+
+    Compares lgbm vs pu-bagging vs composite vs rrf-fusion on the SAME temporal
+    holdout (SIGN-013); CV only tunes (entity-grouped, SIGN-016). EXPLORATORY —
+    never auto-promoted into the production composite (SIGN-010).
+    """
+    from relief_probe.scorer.validate import run_nested_lgbm_validation
+
+    with connect() as con:
+        n_lab = con.execute("SELECT COUNT(*) FROM fraud_cases").fetchone()[0]
+        n_sig = con.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+        if n_lab == 0 or n_sig == 0:
+            console.print(
+                "[yellow]Need labels + signals.[/] Run `fetch-labels`, "
+                "`resolve-labels`, and `score` first."
+            )
+            raise typer.Exit(code=1)
+        console.print(
+            f"Tuning + training LightGBM (nested CV, holdout <= {holdout_year}) …"
+        )
+        try:
+            res = run_nested_lgbm_validation(con, holdout_year=holdout_year)
+        except RuntimeError as exc:  # missing ml extra / lightgbm absent
+            console.print(f"[yellow]{exc}[/]")
+            raise typer.Exit(code=1) from None
+
+    console.print(
+        f"Holdout: train (<= {res['holdout_year']}) "
+        f"[bold]{res['n_train_positives']}[/] positives · test (> "
+        f"{res['holdout_year']}) [bold]{res['n_test_positives']}[/] · population "
+        f"{res['population']:,} · base {res['base_rate']:.4%}"
+    )
+    ks = res["ks"]
+    rk = res["rankings"]
+    cols = ("lgbm", "pu_bagging", "composite", "rrf_fusion")
+    t = Table(title="Held-out recall@k — LightGBM vs PU-bagging vs composite vs RRF")
+    t.add_column("k")
+    for name in cols:
+        t.add_column(name, justify="right")
+    for k in ks:
+        row = [f"{k:,}"]
+        for name in cols:
+            m = rk[name]["metrics"][k]
+            row.append("—" if m["recall"] is None else f"{m['recall']:.1%}")
+        t.add_row(*row)
+    console.print(t)
+    console.print(
+        "[bold]Top LightGBM features (gain):[/] "
+        + ", ".join(f"{n} ({v})" for n, v in res["feature_importance"][:6])
+    )
+    styles = {"improved": "green", "regressed": "red"}
+    console.print(
+        f"Verdict (lgbm vs composite): "
+        f"[{styles.get(res['verdict'], 'yellow')}]{res['verdict']}[/]  "
+        "[dim](EXPLORATORY, SIGN-010; temporal holdout, recall-on-known-fraud).[/]"
     )
 
 
