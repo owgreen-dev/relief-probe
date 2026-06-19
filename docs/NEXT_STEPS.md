@@ -526,6 +526,76 @@ that's the rate-limited manual run below.)
    attribution + no account-creation-to-bypass-gates — see RESPONSIBLE_USE.md). Leads, not
    proof.
 
+## Loop 6 — LightGBM learned scorer ⚗️ (built + nested-validation harness; real verdict generated post-loop)
+
+A **rigorous retry of the row-wise PREDICTION bet** before v1. The session's repeated finding
+is that AI/ML wins at **retrieval**, not row-wise **prediction** — M10's PU-bagging scorer came
+back NULL (it overfit `forgiveness_ratio`, caught by the temporal holdout). This loop gives
+prediction one more HONEST, well-designed shot: a **LightGBM** model over a **composite of every
+signal we built** (the detectors that worked AND the ones that didn't standalone, + graph
+structural features + a PLODI-style geo-normalized pay-ratio percentile + categoricals), on the
+theory that gradient-boosted trees find interactions a linear composite + bagged trees miss.
+
+**Prior art — cited as MOTIVATION, not as our results:**
+- **PLODI** (https://s-chadalavada.github.io/plodi/) — a supervised XGBoost on prosecution
+  labels (752 loans from 108 cases) + a geo/industry-normalized pay ratio got a real signal,
+  but used a **RANDOM 80/20 split** (no temporal-leakage guard). *How we differ:* we report on a
+  **temporal holdout** (train on charges ≤2023, evaluate on >2023), which is what caught M10's
+  overfit and is the only honest headline (SIGN-013).
+- **Dicklesworthstone** (https://github.com/Dicklesworthstone/ppp_loan_fraud_analysis) — a
+  weighted rule engine + a secondary XGBoost whose model predicts its **own rule-flags**
+  (circular; ROC-AUC 0.873 on self-labels). *How we differ:* we train on **real DOJ prosecution
+  labels only** — never a self-label / rule-flag target — so the model is measured against an
+  independent ground truth, not its own output.
+
+**What was built (one commit per feature, exploratory throughout — SIGN-010):**
+- **SCORER-001 — rich, leakage-guarded feature composite** (`scorer/features.py::
+  build_rich_feature_matrix`). Blocks: (A) at-origination structured fields — **DROPS
+  `forgiveness_ratio`** (the post-hoc field M10 overfit, SIGN-014), ADDS proceeds-breakdown
+  shares (payroll/utilities/rent/mortgage/health/debt/eidl) + an initial-vs-current amount
+  delta; (B) every detector's score + rich evidence numerics (the worked + didn't-work union —
+  cohort robust-z, payroll cap-exceedance, multiple-funded excess, amount-anomaly, establishment
+  overcount, lender concentration, NAICS-mismatch, address-ring); (C) graph structural features
+  (label-free); (D) a **PLODI-style amount-per-job percentile** within NAICS×state(×county) +
+  cohort size; (E) LightGBM-native categoricals (NAICS sector, state, processing method,
+  business type, rural/urban, nonprofit/franchise flags, lender). **Leakage-guarded:** the
+  feature matrix is byte-identical whether `fraud_cases` is empty or populated (features never
+  read the label table — SIGN-015); no `forgiveness`/`loan_status`/`is_fraud` column. The
+  existing `build_feature_matrix` + M10's tests are untouched (back-compat).
+- **SCORER-002 — `LgbmPuScorer`** (`scorer/lgbm.py`). Wraps a regularized
+  `lightgbm.LGBMClassifier` (lazy import → clean `ml`-extra `RuntimeError` if absent; `lightgbm`
+  is in the `ml` extra). API mirrors `PUBaggingScorer` so it slots into the same harness.
+  Anti-overfit levers: downsample unlabeled-as-negative (~1:30, configurable), `scale_pos_weight`
+  from the ratio, `num_leaves=31`/`min_child_samples=50`/small learning rate/`feature_fraction`
+  +`bagging_fraction`<1/`reg_lambda`, and **monotone constraints** on documented monotone
+  features (payroll cap-exceedance, cohort/lender robust-z). Deterministic with a fixed seed.
+- **SCORER-003 — nested validation harness** (`scorer/validate.py::
+  run_nested_lgbm_validation`). **INNER:** grouped k-fold CV **grouped by `entity_key`** (one
+  borrower never spans folds) over the charges≤2023 train period — for hyperparameter tuning +
+  early stopping ONLY (SIGN-016). **OUTER:** train the tuned model on all train positives, score
+  the slice, evaluate the >2023 holdout positives (the honest headline — SIGN-013). Returns a
+  comparison of **lgbm vs pu_bagging vs composite vs an RRF-fusion (lgbm+composite)** on the same
+  holdout — the fusion tests whether LightGBM **adds** even if it doesn't win alone — plus
+  LightGBM gain feature-importances and an honest `verdict` ∈ {improved, neutral, regressed}.
+- **SCORER-004 — CLI + read-only validation script.** `relief-probe learn-score --model lgbm`
+  runs the nested harness (clear message + `Exit(1)` if the `ml` extra is absent);
+  `scripts/validate_learned_scorer.py` is **READ-ONLY** (`connect(read_only=True)`) and prints
+  the honest disposition on the real warehouse — the real run is a heavy compute step done
+  **OUTSIDE the loop** (the loop only builds + unit-tests the harness's pure parts).
+
+**DISPOSITION: EXPLORATORY (SIGN-010), real verdict generated post-loop (SIGN-008).** The
+LightGBM scorer is never auto-promoted into `all_detectors()` / the production composite —
+promotion is a manual human decision after real-data lift on the temporal holdout. **An honest
+NEGATIVE** (LightGBM does not beat the composite on the >2023 holdout) is an acceptable,
+documented outcome and would CONFIRM the retrieval>prediction thesis more rigorously. The real
+lift@k / recall@k verdict is left as a to-be-filled placeholder (the heavy run on the full
+warehouse is outside the loop — run `scripts/validate_learned_scorer.py` to generate it).
+
+**DEFERRED to a follow-up loop:** label **augmentation** (deeper multi-defendant LLM extraction;
+homophily soft-PU) — this loop deliberately uses the existing **404 labels / 368 in-slice** so
+the methodology change (LightGBM + nested validation) is measured against the M10 baseline on the
+same labels, not confounded with a label change.
+
 ## Hardening / rigor backlog (post-M6, from the objective self-review)
 
 The build is complete and above-median on breadth + engineering + honesty, but the

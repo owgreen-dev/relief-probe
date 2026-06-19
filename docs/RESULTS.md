@@ -71,6 +71,8 @@ Reported because reporting them is the point — an honest negative is a result,
 - **Learned PU scorer — no lift (overfit, caught by the holdout).** A PU-bagging scorer over the
   detector + structured features showed no improvement on a temporal holdout (train ≤2023, test
   >2023) — and the holdout is what caught it overfitting `forgiveness_ratio`. Kept exploratory.
+  A **second, rigorous retry — a LightGBM scorer (Loop 6)** — is built and exploratory; its real
+  temporal-holdout verdict is generated post-loop (see below).
 
 - **Graph ring cold-ranking — no lift.** Ranking loans purely by ring/community structure did
   not beat the composite or chance. Combined with the expansion win above: graph structure is a
@@ -87,3 +89,45 @@ honestly kept out of the production composite because they showed no usable lift
 `duplicate_address_ring` (null; legitimate co-location dominates), `establishment_overcount`
 (weak; doesn't improve the composite), `lender_concentration` (zero lift), `amount_anomaly`
 (weak). They remain as opt-in exploratory signals. The composite stays small on purpose.
+
+## The LightGBM learned scorer — prediction's rigorous retry (exploratory; verdict post-loop)
+
+M10's learned PU scorer was a clean negative — but "PU-bagging over a thin feature set" is only
+one way to bet on prediction. Loop 6 gives prediction **one more honest, well-designed shot**
+before v1: a **LightGBM** model over a **composite of every signal the project built** — the
+detectors that worked *and* the ones that didn't standalone, plus graph structural features, a
+PLODI-style geo-normalized pay-ratio percentile, and categoricals. The bet: gradient-boosted
+trees find **interactions** a linear composite + bagged trees miss.
+
+**Cited as motivation, not as our results — and how we differ:**
+
+- **PLODI** ([s-chadalavada.github.io/plodi](https://s-chadalavada.github.io/plodi/)) — a
+  supervised XGBoost on prosecution labels (752 loans / 108 cases) + a geo/industry-normalized
+  pay ratio got a real signal, but on a **random 80/20 split**. *We report on a temporal holdout*
+  (train ≤2023, evaluate >2023) — the split that caught M10's overfit; a random split leaks
+  future-charge patterns and inflates the result.
+- **Dicklesworthstone**
+  ([github.com/Dicklesworthstone/ppp_loan_fraud_analysis](https://github.com/Dicklesworthstone/ppp_loan_fraud_analysis))
+  — a rule engine + a secondary XGBoost that predicts its **own rule-flags** (circular; ROC-AUC
+  0.873 on self-labels). *We train on real DOJ prosecution labels only* — never a self-label
+  target — so the model is measured against an independent ground truth.
+
+**The methodology (the honest part):** *nested* validation. The **inner** loop is grouped k-fold
+CV (grouped by resolved borrower so one entity never spans folds) over the ≤2023 train period,
+used **only** to tune hyperparameters + early stopping. The **outer** loop is the **temporal
+holdout** — train on charges ≤2023, report lift@k / recall@k / rank-stats on the >2023 holdout.
+The harness compares **LightGBM vs PU-bagging vs the composite vs an RRF-fusion (LightGBM +
+composite)** on that same holdout — the fusion asks whether LightGBM *adds* even if it doesn't
+win alone — and reports LightGBM gain feature-importances. Two leakage guards are the whole
+point: **no post-hoc features** (`forgiveness_ratio` and friends are dropped — that's what M10
+overfit) and **no label-derived features** (the similarity layer contributes only its
+unsupervised scores; the model trains on labels, the features never touch them).
+
+**Disposition — exploratory; the verdict is generated post-loop.** The scorer is **not** promoted
+into the production composite (the same discipline as every other method here). The real
+temporal-holdout lift/recall is a **heavy compute run done outside the loop**
+(`scripts/validate_learned_scorer.py`, read-only) and is reported there, not invented here. Going
+in, the prior is a likely **honest negative** — and an honest negative would *confirm* the
+retrieval>prediction thesis more rigorously, not refute it. (**Deferred to a follow-up loop:**
+label augmentation — deeper multi-defendant LLM extraction and homophily soft-PU — so this loop
+isolates the model/validation change against the existing 404 labels.)

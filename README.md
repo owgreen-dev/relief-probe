@@ -31,7 +31,7 @@ The differentiator isn't a single model — it's the **discipline**. Every metho
 
 | Bucket | Outcome |
 | --- | --- |
-| **Prediction / cold-ranking** (re-score a loan's own fields) | LLM plausibility judge ❌ · name↔NAICS embedding mismatch ❌ · PU-bagging learned scorer ❌ *(temporal holdout caught the overfit)* · graph ring cold-rank ❌ · business-recency ~❌ |
+| **Prediction / cold-ranking** (re-score a loan's own fields) | LLM plausibility judge ❌ · name↔NAICS embedding mismatch ❌ · PU-bagging learned scorer ❌ *(temporal holdout caught the overfit)* · LightGBM learned scorer ⚗️ *(rich composite + nested validation; verdict generated post-loop)* · graph ring cold-rank ❌ · business-recency ~❌ |
 | **Retrieval / expansion** (bring new info, exploit relationships) | LLM entity resolution ✅ **+79 labels (+24%)** · similar-case homophily ✅ **3.4×** · graph lead-expansion ✅ |
 
 Full per-method verdicts, written for a reader: **[docs/RESULTS.md](docs/RESULTS.md)** (the blow-by-blow engineering log is [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md)).
@@ -135,7 +135,7 @@ A snapshot you (or a fork) can pick up loop-by-loop. Each is scoped and points a
 - **A free KYB provider** *(M)* — implement the `EvidenceProvider` protocol against a **free** source (SAM.gov's government API, or a state Secretary-of-State) as a drop-in for OpenCorporates. *Reuse `kyb/provider.py::EvidenceProvider`.*
 - **The external-evidence (Tier-B) live result** *(S, gated)* — the OpenCorporates client is built; a real `kyb-enrich --live` run (token + legal review) would settle whether precise registration dates concentrate prosecuted loans. *Already built — needs a key.*
 - **More label sources** *(M)* — extract `(business, amount, program)` from CourtListener/RECAP court records with the LLM-extraction pattern, validated by a join back to the public SBA data. *Reuse `labels/llm_resolve.py`.*
-- **A better-regularized learned blend** *(M)* — stack the detector + structural/graph features into a PU scorer (the first PU-bagging attempt overfit on the temporal holdout — that's the bar to beat). *Reuse `scorer/`.*
+- **A better-regularized learned blend** *(M, built — exploratory)* — a **LightGBM** PU scorer over the rich feature composite (every detector + structural/graph features + a PLODI-style geo-normalized pay-ratio + categoricals) with **nested validation** (grouped-k-fold CV tunes; the >2023 temporal holdout is the headline) is built (`scorer/lgbm.py`, `relief-probe learn-score --model lgbm`). The real holdout verdict is generated post-loop by the read-only `scripts/validate_learned_scorer.py`; it stays exploratory until it earns lift over the composite. **Next:** label augmentation (deeper multi-defendant LLM extraction; homophily soft-PU). *Reuse `scorer/`.*
 - **Real document data** *(M)* — run the vision/ELA layer on a real forged-document corpus (IDNet / "Find it again!") instead of synthetic splices. *Reuse `vision/`.*
 
 ## Data sources
