@@ -15,6 +15,7 @@ import numpy as np
 
 from relief_probe.benchmark.core import (
     DEFAULT_KS,
+    bootstrap_lift_cis,
     positive_rank_stats,
     ranking_metrics,
     reciprocal_rank_fusion,
@@ -212,6 +213,7 @@ def run_nested_lgbm_validation(
     random_state: int = 0,
     downsample_ratio: int = 30,
     top_n: int = 15,
+    n_boot: int = 2_000,
     ks: tuple[int, ...] = DEFAULT_KS,
 ) -> dict:
     """Nested validation of the LightGBM scorer — CV-tune, temporal-holdout report.
@@ -309,9 +311,18 @@ def run_nested_lgbm_validation(
     rrf_ranked = reciprocal_rank_fusion([lgbm_ranked, composite_ranked])
 
     def _evaluate(ranked: list[str]) -> dict:
+        # Poisson bootstrap CIs on the top of the ranking. LightGBM scores every
+        # loan > 0 (no natural flagged/unflagged cut), so resampling the full 965k
+        # is wasteful — a loan ranked beyond ~5x the largest k effectively cannot
+        # reach the top k after resampling, so truncate the head for speed.
+        head_n = max(eff_ks) * 5 if eff_ks else n_pop
         return {
             "metrics": ranking_metrics(ranked, test_pos, base_rate, eff_ks),
             "ranks": positive_rank_stats(ranked, test_pos, n_pop),
+            "cis": bootstrap_lift_cis(
+                ranked[:head_n], test_pos, base_rate, eff_ks,
+                n_boot=n_boot, seed=random_state,
+            ),
         }
 
     rankings = {

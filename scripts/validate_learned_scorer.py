@@ -62,9 +62,10 @@ def _fmt_pct(value: float | None) -> str:
 
 
 def _report_ranking(name: str, ranking: dict, ks: list[int]) -> None:
-    """Print recall@k / lift@k + rank concentration for one ranking."""
+    """Print recall@k / lift@k (+ 95% bootstrap CI) + rank concentration."""
     metrics = ranking["metrics"]
     ranks = ranking["ranks"]
+    cis = ranking.get("cis", {})
     pct = ranks["mean_percentile_in_ranking"]
     print(f"=== {name} ===")
     print(
@@ -74,9 +75,11 @@ def _report_ranking(name: str, ranking: dict, ks: list[int]) -> None:
     for k in ks:
         m = metrics[k]
         lift = "—" if m["lift"] is None else f"{m['lift']}x"
+        ci = cis.get(k, {}).get("lift_ci")
+        ci_s = f"  [95% CI {ci[0]}–{ci[1]}x]" if ci else ""
         print(
             f"    @{k:,}: {m['hits']} hits · recall {_fmt_pct(m['recall'])} · "
-            f"lift {lift}"
+            f"lift {lift}{ci_s}"
         )
     print()
 
