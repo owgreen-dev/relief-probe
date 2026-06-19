@@ -671,6 +671,117 @@ def triage(
     )
 
 
+@app.command()
+def similar(
+    loan_number: str = typer.Argument(
+        ..., help="The loan_number to find look-alikes for."
+    ),
+    k: int = typer.Option(20, "--k", help="How many similar loans to return."),
+    min_amount: float = typer.Option(
+        150_000.0,
+        "--min-amount",
+        help="Dollar threshold; loans below this are never considered (keeps it "
+        "cheap — we only embed the in-band pool, never the whole warehouse).",
+    ),
+    amount_tol: float = typer.Option(
+        0.25, "--amount-tol", help="+/- dollar band around the loan's amount."
+    ),
+    same_state: bool = typer.Option(
+        True, "--same-state/--all-states", help="Restrict to the borrower's state."
+    ),
+    lexical_only: bool = typer.Option(
+        False,
+        "--lexical-only",
+        help="Use only the offline lexical embedder (no model download / "
+        "embeddings-lite extra needed).",
+    ),
+    llm: bool = typer.Option(
+        False,
+        "--llm/--no-llm",
+        help="Add a grounded LLM narrative of the cluster. Needs the `agent` extra "
+        "+ ANTHROPIC_API_KEY.",
+    ),
+) -> None:
+    """Find loans that resemble this one (hybrid name + dollar/area similarity).
+
+    A retrieval tool for investigation — surfaces rings/templates and which
+    look-alikes are already prosecuted. NOT a fraud prediction: a resemblance is a
+    lead for review, not evidence of fraud. See RESPONSIBLE_USE.md.
+    """
+    from relief_probe.similarity.core import SIMILARITY_DISCLAIMER, find_similar
+
+    embedder = lexical = None
+    if lexical_only:
+        from relief_probe.embeddings import HashingEmbedder
+
+        embedder = lexical = HashingEmbedder()
+
+    with connect(read_only=True) as con:
+        try:
+            result = find_similar(
+                con, loan_number, k=k, min_amount=min_amount,
+                amount_tol=amount_tol, same_state=same_state,
+                embedder=embedder, lexical=lexical,
+            )
+        except RuntimeError as exc:  # missing embeddings-lite extra (semantic path)
+            console.print(f"[yellow]{exc}[/]")
+            console.print("[dim]Tip: pass --lexical-only for an offline run.[/]")
+            raise typer.Exit(code=1) from None
+
+        if not result["available"]:
+            console.print(
+                f"[yellow]No similar cases[/] for {loan_number} "
+                f"({result['reason']})."
+            )
+            raise typer.Exit(code=0)
+
+        t = result["target"]
+        s = result["summary"]
+        flag = " [red](prosecuted)[/]" if t.get("is_fraud") else ""
+        console.print(
+            f"[bold]{t.get('borrower_name')}[/]{flag} — "
+            f"${t['current_approval_amount']:,.0f}, {t.get('borrower_state')}, "
+            f"NAICS {t.get('naics_code')} · pool {s['pool_size']:,} · "
+            f"[bold]{s['n_fraud_neighbors']}[/] prosecuted look-alike(s)"
+        )
+
+        tbl = Table(title=f"Top {len(result['neighbors'])} similar loans")
+        for col in ("rank", "loan_number", "borrower_name", "naics", "st",
+                    "amount", "d$%", "sem", "lex", "fraud"):
+            tbl.add_column(col)
+        for n in result["neighbors"]:
+            tbl.add_row(
+                str(n["rank"]),
+                str(n["loan_number"]),
+                (n.get("borrower_name") or "")[:26],
+                str(n.get("naics_code") or ""),
+                str(n.get("borrower_state") or ""),
+                f"${(n.get('current_approval_amount') or 0):,.0f}",
+                f"{n['amount_delta_pct']:.0%}",
+                f"{n['semantic_sim']:.2f}",
+                f"{n['lexical_sim']:.2f}",
+                "yes" if n["is_fraud"] else "",
+                style="red" if n["is_fraud"] else None,
+            )
+        console.print(tbl)
+
+        from relief_probe.similarity.explain import deterministic_summary
+
+        console.print(deterministic_summary(result))
+        if llm:
+            from relief_probe.config import llm_model
+            from relief_probe.similarity.explain import explain_cluster
+
+            try:
+                console.print(f"[bold]LLM narrative[/] [dim]({llm_model()})[/]")
+                console.print(explain_cluster(result, model=llm_model()))
+            except RuntimeError as exc:
+                console.print(f"[yellow]{exc}[/]")
+                raise typer.Exit(code=1) from None
+
+    console.print(f"[dim]{SIMILARITY_DISCLAIMER}[/]")
+
+
 @app.command(name="serve-mcp")
 def serve_mcp() -> None:
     """Serve the four read-only investigator tools over MCP (stdio).

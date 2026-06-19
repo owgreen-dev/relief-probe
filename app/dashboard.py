@@ -1,15 +1,18 @@
-"""relief-probe dashboard — loan-fraud leads + data analysis + a vision tab.
+"""relief-probe dashboard — loan-fraud leads + data analysis + similar cases + vision.
 
-Three tabs:
+Four tabs:
   * Loan leads — the ranked composite leads + the forward PU benchmark headline.
   * Data analysis ($150k+) — descriptive analytics over the public $150k+ disclosure
     slice (the labelable evaluation universe): size/jobs/$-per-job distributions, top
     states / industries / lenders, and detector-flag coverage.
+  * Similar cases — enter a loan; find its look-alikes by business name (semantic +
+    keyword) and dollar/area proximity, with each neighbor's fraud flag + an optional
+    grounded LLM explanation. A retrieval/investigation tool, not a prediction.
   * Document authenticity — upload a supporting document; the ELA detector returns a
     forgery probability + the ELA heatmap. PPP fraud is largely fabricated supporting
     docs, so this pairs with the tabular core.
 
-Run:
+Run (the Similar-cases tab also wants `--extra embeddings-lite`):
     uv run --extra viz --extra vision streamlit run app/dashboard.py
 
 Read-only and demo-oriented. A high score is a lead for review, not evidence of
@@ -241,17 +244,108 @@ def vision_tab() -> None:
     st.warning(SYNTHETIC_NOTE)
 
 
+@st.cache_resource
+def get_embedders():
+    """Load the (semantic, lexical) embedders once. Falls back to lexical-only when
+    the embeddings-lite extra is absent (returns (None, HashingEmbedder()))."""
+    from relief_probe.embeddings import HashingEmbedder, Model2VecEmbedder
+
+    lexical = HashingEmbedder()
+    sem = Model2VecEmbedder()
+    try:
+        sem.embed(["warmup"])  # trigger the lazy model load now
+    except RuntimeError:
+        return None, lexical
+    return sem, lexical
+
+
+def similar_tab() -> None:
+    import pandas as pd
+
+    from relief_probe.similarity.core import find_similar
+    from relief_probe.similarity.explain import deterministic_summary
+
+    st.header("Similar cases")
+    st.caption(
+        "Find loans that resemble a given one by business name (semantic + keyword) "
+        "and dollar/area proximity — to surface rings/templates. A resemblance is a "
+        "lead for review, not proof."
+    )
+    con = get_connection()
+    sem, lex = get_embedders()
+    if sem is None:
+        st.info(
+            "Semantic model not installed (`uv sync --extra embeddings-lite`); "
+            "using the offline lexical embedder only."
+        )
+
+    c1, c2, c3 = st.columns(3)
+    loan_number = c1.text_input("Loan number", "")
+    k = c2.slider("Neighbors (k)", 5, 50, 20, step=5)
+    same_state = c3.toggle("Same state only", value=True)
+    c4, c5 = st.columns(2)
+    min_amount = c4.number_input("Min amount ($)", value=150_000, step=50_000)
+    amount_tol = c5.slider("Dollar band (±)", 0.05, 0.50, 0.25, step=0.05)
+
+    if not loan_number.strip():
+        st.info("Enter a loan number (e.g. a top lead from the Loan leads tab).")
+        return
+
+    res = find_similar(
+        con, loan_number.strip(), k=k, min_amount=float(min_amount),
+        amount_tol=amount_tol, same_state=same_state,
+        embedder=sem or lex, lexical=lex,
+    )
+    if not res["available"]:
+        st.warning(f"No similar cases ({res['reason']}).")
+        return
+
+    s = res["summary"]
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Pool size", f"{s['pool_size']:,}")
+    m2.metric("Prosecuted look-alikes", s["n_fraud_neighbors"])
+    m3.metric("Same industry", s["n_same_naics"])
+    st.write(deterministic_summary(res))
+
+    df = pd.DataFrame(
+        [
+            {
+                "rank": n["rank"], "loan_number": n["loan_number"],
+                "borrower_name": n["borrower_name"], "naics": n["naics_code"],
+                "state": n["borrower_state"], "amount": n["current_approval_amount"],
+                "d$%": n["amount_delta_pct"], "semantic": n["semantic_sim"],
+                "lexical": n["lexical_sim"], "fraud": n["is_fraud"],
+            }
+            for n in res["neighbors"]
+        ]
+    )
+    st.dataframe(df, width="stretch", hide_index=True)
+
+    if st.button("Explain this cluster (LLM)"):
+        from relief_probe.config import llm_model
+        from relief_probe.similarity.explain import explain_cluster
+
+        try:
+            st.write(explain_cluster(res, model=llm_model()))
+        except RuntimeError as exc:
+            st.warning(str(exc))
+    st.caption(res["disclaimer"])
+
+
 def main() -> None:
     st.set_page_config(page_title="relief-probe", layout="wide")
     st.title("relief-probe — PPP/SBA fraud leads")
     st.warning(DISCLAIMER)
-    leads, data, vision = st.tabs(
-        ["Loan leads", "Data analysis ($150k+)", "Document authenticity"]
+    leads, data, similar, vision = st.tabs(
+        ["Loan leads", "Data analysis ($150k+)", "Similar cases",
+         "Document authenticity"]
     )
     with leads:
         leads_tab()
     with data:
         data_tab()
+    with similar:
+        similar_tab()
     with vision:
         vision_tab()
 

@@ -224,3 +224,31 @@ def gather_evidence(
         "fraud_case": fraud_case_check(con, loan_number),
         "composite": composite_for(con, loan_number),
     }
+
+
+def similar_loans(
+    con: duckdb.DuckDBPyConnection,
+    loan_number: str,
+    *,
+    k: int = 10,
+    min_amount: float = 150_000.0,
+    embedder: Any = None,
+    lexical: Any = None,
+) -> dict[str, Any]:
+    """Retrieve the ``k`` loans most similar to this one (read-only, opt-in).
+
+    Delegates to :func:`relief_probe.similarity.core.find_similar` — a hybrid
+    (name semantic + lexical + dollar/industry) look-alike finder for investigation.
+    This is NOT a detector and emits no signals; a resemblance is a lead for review.
+
+    Imported lazily and deliberately kept OUT of :func:`gather_evidence` so the
+    default investigation path stays pure-Python, offline, and free of an embedding
+    model load. ``embedder``/``lexical`` are injectable for tests; defaults load
+    lazily inside the engine.
+    """
+    from relief_probe.similarity.core import find_similar
+
+    return find_similar(
+        con, loan_number, k=k, min_amount=min_amount,
+        embedder=embedder, lexical=lexical,
+    )

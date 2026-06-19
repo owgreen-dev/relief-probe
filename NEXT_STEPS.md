@@ -347,6 +347,45 @@ SoS registration-date / address-type / footprint, the Griffin et al. indicators)
 embedding detector with the real semantic model + validate lift; sweep `resolve-labels-llm`
 past the 400-cap for more recall; PU-bagging learned scorer consuming these features.
 
+## M9 — Similar-case retrieval ✅ (LLM-for-retrieval — a validated POSITIVE)
+
+The session's prediction attempts (Tier-1 reranker, name↔NAICS mismatch) were null:
+individual loans look plausible. But the *relationships between loans* — rings/templates —
+carry signal. This reframes the embeddings from a (failed) predictor into a (working)
+**retrieval** tool: "show me cases like this one." New `similarity/` package — NOT a detector
+(emits no signals, not in the registry); read-only; deterministic-first.
+
+- **`find_similar` engine** (`similarity/core.py`): **blocking-first** — same state + dollar
+  band + a dollar **threshold** (default $150k) caps the candidate pool, so we embed only that
+  pool on-demand and **never the millions of names** (the user's hard constraint). Then rank
+  the pool three ways — name **semantic** (`Model2VecEmbedder`, torch-free), name **lexical**
+  (`HashingEmbedder`), and **structured** proximity ($ delta, same NAICS, same ZIP5) — and
+  **fuse with RRF** (`reciprocal_rank_fusion`, the rank-based primitive, not the additive blend
+  that sank Tier 1). Area/band are hard blocks; NAICS is soft (rings re-file under varied
+  codes). Every neighbor exposes its component scores + an `is_fraud` flag — explainable by
+  construction. Graceful empty shapes; injectable embedders for offline tests.
+- **BYOK explanation** (`similarity/explain.py`): `deterministic_summary` (always available) +
+  key-gated `explain_cluster` (Haiku narrates the cluster from retrieved facts only — the
+  "LLM explains decisions" piece; mirrors `agent/graph._synthesize_narrative`).
+- **Surfaces:** `relief-probe similar <loan> [--k --min-amount --amount-tol
+  --same-state/--all-states --lexical-only --llm]`; an `agent/tools.py::similar_loans` opt-in
+  tool (kept OUT of `gather_evidence` so `investigate` stays offline); a 4th Streamlit
+  **"Similar cases"** dashboard tab (cached embedders, area/$ filters, neighbor table with
+  fraud flags, LLM-explain button) — the portfolio demo.
+- **Real-data verdict (VALIDATED POSITIVE — `scripts/validate_similar_homophily.py`):**
+  **homophily lift 3.43× (semantic) / 3.22× (lexical)** — a prosecuted loan's top-10
+  look-alikes are ~3.4× more likely to be prosecuted than chance (381/404 labels had a
+  non-empty pool in the 20k subset). **Fraud clusters into rings/templates, and the tool
+  surfaces it.** Honest caveat: the 20k subsample inflates the base rate (1.98% vs ~0.034%
+  real), so the *magnitude* is subsample-dependent — but lift > 1 (clustering exists) is
+  robust, and the semantic embedder beating lexical means the embeddings earn their keep. Not
+  a prediction claim — a retrieval/lead-expansion signal ("find the rest of the ring").
+- **The refined session meta-finding:** AI failed at *prediction / re-scoring* the loans'
+  own attributes (3 honest negatives) but succeeded at *retrieval* — both label-recovery
+  (Phase 3, +79 labels) and ring-surfacing (this, 3.4× homophily). Use the LLM/embeddings for
+  what only they can do (fuzzy matching, similarity, explanation), not to re-judge what the
+  statistics already saw. 7 new tests (suite now 162: 156 passed + 6 skipped); ruff clean.
+
 ## Hardening / rigor backlog (post-M6, from the objective self-review)
 
 The build is complete and above-median on breadth + engineering + honesty, but the
