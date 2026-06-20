@@ -9,6 +9,9 @@ scripts/ralph/
 .claude/commands/
 .claude/*.local.*
 
+# Internal strategy / promotion notes — kept local, not in the public repo
+deep-research-report.md
+
 # Secrets — never commit API keys.
 .env
 .env.*
