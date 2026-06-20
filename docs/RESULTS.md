@@ -2,7 +2,7 @@
 
 The clean, human-readable version of the method verdicts. (The blow-by-blow engineering log
 with every parameter and caveat is [NEXT_STEPS.md](NEXT_STEPS.md); this is the summary written
-for a reader.)
+for a reader. For the shareable one-screen version, see the root [RESULTS.md](../RESULTS.md).)
 
 All numbers are on the labelable **$150k+ slice** (965,122 loans), validated out-of-time
 against charges that post-date the loans. The entity-resolved DOJ label set is **404** loans

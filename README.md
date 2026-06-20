@@ -9,6 +9,10 @@
 
 Reproducible by a stranger from public federal files (SBA FOIA loan data + DOJ/SBA-OIG enforcement records), on a laptop, against a local DuckDB warehouse — no cluster.
 
+**Start here:** [Try the demo](#usage) · [Results one-pager](RESULTS.md) · [What it is](#what-it-is) · [Responsible use](RESPONSIBLE_USE.md)
+
+> 🔍 **Try the synthetic demo** — one command, **fictitious sample data only**, no keys, no real records: `uv run --extra viz --extra vision --extra embeddings-lite streamlit run app/dashboard.py` (see [Usage](#usage)). <!-- TODO: paste the hosted streamlit.app URL here once the demo is deployed to Streamlit Community Cloud -->
+
 > **Research/educational project — not legal, financial, or investigative advice, and not an accusation of fraud against any person or business.** Every score is a *statistical lead for review of public data*, never a determination of guilt; all examples and screenshots use anonymized or synthetic data. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
 ![relief-probe dashboard — Similar cases tab](docs/images/similar-cases.png)

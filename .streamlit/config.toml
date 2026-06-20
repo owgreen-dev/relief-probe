@@ -1,0 +1,15 @@
+# Streamlit configuration for the hosted demo.
+# Secrets (e.g. RELIEF_PROBE_DEMO, ANTHROPIC_API_KEY) are NOT set here — add them
+# in the Streamlit Community Cloud app settings. See docs/DEPLOY.md.
+
+[theme]
+primaryColor = "#9ecae1"
+base = "light"
+
+[server]
+headless = true
+# The demo never accepts data uploads except the vision tab's single image.
+maxUploadSize = 10
+
+[browser]
+gatherUsageStats = false

@@ -27,11 +27,16 @@ from __future__ import annotations
 
 import json
 import math
+import os
 
 import streamlit as st
 
 from relief_probe.config import data_dir
 from relief_probe.warehouse import connect
+
+# Hosted-demo mode: build a small, fully-synthetic warehouse on first launch
+# (the real warehouse is gitignored and never deployed — SIGN-007).
+DEMO_MODE = os.environ.get("RELIEF_PROBE_DEMO") == "1"
 
 DISCLAIMER = (
     "Statistical leads for review, not evidence of fraud. Loan data is public (SBA "
@@ -42,6 +47,10 @@ MODEL_PATH = data_dir() / "models" / "doc_authenticity.joblib"
 
 @st.cache_resource
 def get_connection():
+    if DEMO_MODE:
+        from relief_probe.demo import ensure_demo_warehouse
+
+        ensure_demo_warehouse()
     return connect(read_only=True)
 
 
@@ -749,6 +758,13 @@ def prosecution_pattern_tab() -> None:
 def main() -> None:
     st.set_page_config(page_title="relief-probe", layout="wide")
     st.title("relief-probe — PPP/SBA fraud leads")
+    if DEMO_MODE:
+        st.info(
+            "🧪 **Demo mode — fully synthetic data.** Every borrower, loan number, "
+            "ring, and prosecution label below is fabricated for illustration; the "
+            "real production detectors are run over it live. No real PPP loans or DOJ "
+            "cases appear here. See RESPONSIBLE_USE.md."
+        )
     st.warning(DISCLAIMER)
     leads, data, similar, vision, pattern = st.tabs(
         ["Loan leads", "Data analysis ($150k+)", "Similar cases",
