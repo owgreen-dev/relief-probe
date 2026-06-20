@@ -4,20 +4,24 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 ![Warehouse: DuckDB](https://img.shields.io/badge/warehouse-DuckDB-yellow.svg)
+[![Live demo](https://img.shields.io/badge/%E2%96%B6_live_demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://relief-probe-git.streamlit.app/)
 
 **Finding fraud leads in 11.4M public PPP loans — validated against *real, future* DOJ prosecutions, and honest about what works and what doesn't.**
 
 Reproducible by a stranger from public federal files (SBA FOIA loan data + DOJ/SBA-OIG enforcement records), on a laptop, against a local DuckDB warehouse — no cluster.
 
-**Start here:** [Try the live demo](https://relief-probe-git.streamlit.app/) · [Results one-pager](RESULTS.md) · [What it is](#what-it-is) · [Responsible use](RESPONSIBLE_USE.md)
+<p align="center">
+  <a href="https://relief-probe-git.streamlit.app/"><img src="docs/images/similar-cases.png" alt="relief-probe dashboard — Similar cases tab (click to open the live demo)"></a>
+</p>
+<p align="center">
+  <a href="https://relief-probe-git.streamlit.app/"><strong>▶ Try the live demo</strong></a> &nbsp;·&nbsp; interactive, on synthetic data only &nbsp;·&nbsp; or run it <a href="#usage">locally</a>
+</p>
 
-> 🔍 **[Try the live demo →](https://relief-probe-git.streamlit.app/)** — the dashboard on **fictitious sample data only** (no keys, no real records; the real production detectors run over it live). Or run it locally: `uv run --extra viz --extra vision --extra embeddings-lite streamlit run app/dashboard.py` (see [Usage](#usage)).
+*The dashboard's "Similar cases" tab — shown on **synthetic demo data** (fictitious sample-company names). Given a loan, find its look-alikes by business-name + dollar + area similarity, surfacing a coordinated ring and flagging which neighbors are already prosecuted. A resemblance is a lead for review, not proof. (On the real warehouse, prosecuted loans' nearest look-alikes are ~3.4× enriched for fraud — see Results.)*
 
 > **Research/educational project — not legal, financial, or investigative advice, and not an accusation of fraud against any person or business.** Every score is a *statistical lead for review of public data*, never a determination of guilt; all examples and screenshots use anonymized or synthetic data. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
-![relief-probe dashboard — Similar cases tab](docs/images/similar-cases.png)
-
-*The dashboard's "Similar cases" tab — shown on **synthetic demo data** (fictitious sample-company names). Given a loan, find its look-alikes by business-name + dollar + area similarity, surfacing a coordinated ring and flagging which neighbors are already prosecuted. A resemblance is a lead for review, not proof. (On the real warehouse, prosecuted loans' nearest look-alikes are ~3.4× enriched for fraud — see Results.)*
+**Start here:** [Results one-pager](RESULTS.md) · [What it is](#what-it-is) · [Responsible use](RESPONSIBLE_USE.md)
 
 ## What it is
 
