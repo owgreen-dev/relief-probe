@@ -174,7 +174,7 @@ def render(density: dict, prosecuted: dict, curve: dict, out_path: Path) -> Path
         "figure.facecolor": "white",
         "axes.facecolor": "white",
     })
-    fig, (axL, axR) = plt.subplots(1, 2, figsize=(12.4, 5.3))
+    fig, (axL, axR) = plt.subplots(2, 1, figsize=(11, 13))
 
     # --- Panel 1: the 11.4M density + prosecuted needles ---
     # Render the SQL-binned grid directly with pcolormesh (no re-binning → crisp).
