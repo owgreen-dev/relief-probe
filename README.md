@@ -27,7 +27,7 @@ Reproducible by a stranger from public federal files (SBA FOIA loan data + DOJ/S
 
 A program-integrity pipeline that ranks PPP loans by fraud-risk anomalies, **measures whether those rankings actually concentrate prosecuted fraud** (out-of-time — the DOJ charges post-date every loan), and layers LLM / graph / retrieval tools on top — each one built, validated on real labels, and **kept or killed on the evidence**.
 
-The differentiator isn't a single model — it's the **discipline**. Every method is stress-tested against dumb baselines and a small, prosecution-biased positive-unlabeled (PU) label set, and the **negatives are reported, not hidden.** The repeated finding:
+The differentiator isn't a single model — it's the **discipline**. Every method is stress-tested against dumb baselines and a small, prosecution-biased positive-unlabeled (PU) label set, and the **negatives are reported, not hidden.** *PU because the 11.4M unprosecuted loans are **unlabeled, not innocent** — the naive-supervised trap is scoring "not yet charged" as "legitimate," and the whole evaluation is built to avoid it.* The repeated finding:
 
 > **AI/ML here wins at _retrieval_ — finding look-alikes, recovering labels, expanding from a known lead — and *mostly* not at _prediction_ over a loan's own fields,** because prosecuted loans look plausible individually. *(Honest exception: a LightGBM over the full metadata union does beat the composite — but partly by learning lender/geo enforcement patterns. See [Results](docs/RESULTS.md).)*
 
