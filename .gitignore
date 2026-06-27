@@ -41,3 +41,6 @@ dashboard-*.png
 .DS_Store
 .idea/
 .vscode/
+
+# Promotion drafts — local-only, not in the public repo
+drafts/
