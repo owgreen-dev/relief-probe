@@ -1,12 +1,12 @@
 """Generate the README's two-panel "scope + honest result" figure.
 
-Left panel — *needle in a haystack*: all ~11.4M public PPP loans as a log–log
+Top panel — *needle in a haystack*: all ~11.4M public PPP loans as a log–log
 density field (loan amount x dollars-per-job), with the prosecuted loans overlaid
 and the $150k disclosure threshold marked. It shows the scale, and it's honest: the
 prosecuted needles are a faint sprinkle that lean into the high-$/job tail
 *alongside* many legitimate high-wage firms.
 
-Right panel — *does it work?*: lift-over-base-rate vs ranking depth (top-k) for the
+Bottom panel — *does it work?*: lift-over-base-rate vs ranking depth (top-k) for the
 composite ranking, the one-line ``amount/jobs`` baseline, and random (1x), with the
 95% Poisson-bootstrap CI band on the composite. This is the README's headline table
 as a curve, including the honest beats (the composite barely beats the one-liner;
