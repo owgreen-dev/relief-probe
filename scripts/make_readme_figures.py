@@ -174,7 +174,16 @@ def render(density: dict, prosecuted: dict, curve: dict, out_path: Path) -> Path
         "figure.facecolor": "white",
         "axes.facecolor": "white",
     })
-    fig, (axL, axR) = plt.subplots(2, 1, figsize=(11, 13))
+    # 2x2 grid: both plot panels live in column 0 so they share an identical
+    # width and left/right edge; the colorbar gets its own thin column on the
+    # top row only, and the matching cell under the bottom panel is left empty.
+    # This keeps the two panels aligned instead of the colorbar shrinking the
+    # top one (which left them the same left edge but different right edges).
+    fig = plt.figure(figsize=(11, 13))
+    gs = fig.add_gridspec(2, 2, width_ratios=[1.0, 0.028], wspace=0.02)
+    axL = fig.add_subplot(gs[0, 0])
+    cax = fig.add_subplot(gs[0, 1])
+    axR = fig.add_subplot(gs[1, 0])
 
     # --- Panel 1: the 11.4M density + prosecuted needles ---
     # Render the SQL-binned grid directly with pcolormesh (no re-binning → crisp).
@@ -190,7 +199,7 @@ def render(density: dict, prosecuted: dict, curve: dict, out_path: Path) -> Path
         x_edges, y_edges, np.ma.masked_invalid(grid),
         cmap="Blues", norm=LogNorm(vmin=1, vmax=np.nanmax(grid)),
     )
-    cb = fig.colorbar(mesh, ax=axL, pad=0.01)
+    cb = fig.colorbar(mesh, cax=cax)
     cb.set_label("loans per cell (log)")
 
     axL.scatter(
@@ -239,9 +248,13 @@ def render(density: dict, prosecuted: dict, curve: dict, out_path: Path) -> Path
         transform=axR.transAxes, fontsize=8, color="#555", va="bottom",
     )
 
-    fig.tight_layout()
+    # Explicit margins (not tight_layout, which would repack the gridspec columns
+    # and re-break the panel alignment). align_ylabels keeps the two y-axis labels
+    # on a common vertical despite different tick-label widths (7 vs 200).
+    fig.subplots_adjust(left=0.085, right=0.91, top=0.955, bottom=0.055, hspace=0.16)
+    fig.align_ylabels([axL, axR])
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, bbox_inches="tight")
+    fig.savefig(out_path, dpi=200)
     plt.close(fig)
     return out_path
 
