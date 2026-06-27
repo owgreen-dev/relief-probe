@@ -17,7 +17,7 @@ Reproducible by a stranger from public federal files (SBA FOIA loan data + DOJ/S
   <a href="https://relief-probe-git.streamlit.app/"><strong>▶ Try the live demo</strong></a> &nbsp;·&nbsp; interactive, on synthetic data only &nbsp;·&nbsp; or run it <a href="#usage">locally</a>
 </p>
 
-*The dashboard's "Similar cases" tab — shown on **synthetic demo data** (fictitious sample-company names). Given a loan, find its look-alikes by business-name + dollar + area similarity, surfacing a coordinated ring and flagging which neighbors are already prosecuted. A resemblance is a lead for review, not proof. (On the real warehouse, prosecuted loans' nearest look-alikes are ~3.4× enriched for fraud — see Results.)*
+<p align="center"><em>The dashboard's "Similar cases" tab — shown on <strong>synthetic demo data</strong> (fictitious sample-company names). Given a loan, find its look-alikes by business-name + dollar + area similarity, surfacing a coordinated ring and flagging which neighbors are already prosecuted. A resemblance is a lead for review, not proof. (On the real warehouse, prosecuted loans' nearest look-alikes are ~3.4× enriched for fraud — see Results.)</em></p>
 
 > **Research/educational project — not legal, financial, or investigative advice, and not an accusation of fraud against any person or business.** Every score is a *statistical lead for review of public data*, never a determination of guilt; all examples and screenshots use anonymized or synthetic data. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
@@ -33,9 +33,10 @@ The differentiator isn't a single model — it's the **discipline**. Every metho
 
 ## Results at a glance
 
-![Scope and result: 11.4M PPP loans with the prosecuted ones overlaid, and the ranking's lift over base rate by depth](docs/images/scope-and-lift.png)
-
-***Left** — all 11.4M public PPP loans by amount × dollars-per-job; the 325 exact-match prosecuted loans (orange) cluster in the high-$/job tail **above the $150k disclosure line** — but so do plenty of legitimate high-wage firms, which is why a one-line sort already gets you most of the way. **Right** — lift over base rate by ranking depth: the composite barely beats the one-line `$/job` sort, and the 95% bootstrap CI only clears 1× around k≥500 (the @100 spike rests on ~3 loans). Generated read-only from the warehouse by [`scripts/make_readme_figures.py`](scripts/make_readme_figures.py).*
+<p align="center">
+  <img src="docs/images/scope-and-lift.png" alt="Scope and result: 11.4M PPP loans with the prosecuted ones overlaid, and the ranking's lift over base rate by depth">
+</p>
+<p align="center"><em><strong>Left</strong> — all 11.4M public PPP loans by amount × dollars-per-job; the 325 exact-match prosecuted loans (orange) cluster in the high-$/job tail <strong>above the $150k disclosure line</strong> — but so do plenty of legitimate high-wage firms, which is why a one-line sort already gets you most of the way. <strong>Right</strong> — lift over base rate by ranking depth: the composite barely beats the one-line <code>$/job</code> sort, and the 95% bootstrap CI only clears 1× around k≥500 (the @100 spike rests on ~3 loans). Generated read-only from the warehouse by <a href="scripts/make_readme_figures.py"><code>scripts/make_readme_figures.py</code></a>.</em></p>
 
 **Does the ranking find prosecuted fraud?** On the labelable 965k-loan **$150k+ slice** (base rate 0.034%), the composite ranking lifts prosecuted loans **23.8× at k=500** — with honest **95% bootstrap CIs** (the eye-catching @100 number rests on *3 loans* and its CI spans zero; the README says so). And it barely beats a one-line `ORDER BY amount/jobs DESC` sort — so the *ratio* is the signal, not the machinery. That self-critique is the point.
 
@@ -111,9 +112,10 @@ uv run relief-probe benchmark                  # measure how well the ranking fi
 
 **3. Explore the leads** — easiest is the dashboard. The **Loan-leads** tab is where you start: the ranked composite leads (large loans claiming very few jobs — the textbook PPP pattern), with prosecuted ones flagged.
 
-![relief-probe dashboard — Loan-leads tab](docs/images/loan-leads.png)
-
-*Loan-leads tab on **synthetic demo data** (fictitious sample-company names). The "Similar cases" tab (the hero screenshot up top) is the ring-expansion view.*
+<p align="center">
+  <img src="docs/images/loan-leads.png" alt="relief-probe dashboard — Loan-leads tab">
+</p>
+<p align="center"><em>Loan-leads tab on <strong>synthetic demo data</strong> (fictitious sample-company names). The "Similar cases" tab (the hero screenshot up top) is the ring-expansion view.</em></p>
 
 ```bash
 uv run --extra viz --extra vision --extra embeddings-lite streamlit run app/dashboard.py
@@ -127,9 +129,10 @@ See a real **[`investigate` report](docs/EXAMPLE_OUTPUT.md)** (what the tool act
 
 The same public data cuts both ways. A fifth dashboard tab lets a **borrower, attorney, or researcher** look up a loan and see where it sits relative to the statistical pattern of the publicly-charged DOJ cases — **transparently, with no risk score and no accusation.** It's the most legally-sensitive surface in the project, and it's framed accordingly (persistent disclaimers, aggregate-only, "statistical comparison, not legal advice"). See **[docs/PROSECUTION_PATTERN.md](docs/PROSECUTION_PATTERN.md)** for the methodology and the explicit limitations, and the matching section in [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
-![relief-probe dashboard — Prosecution pattern tab](docs/images/prosecution-pattern.png)
-
-*The "Prosecution pattern" tab on **synthetic demo data** — a loan's profile, signal overlap, and percentile against the prosecuted population, behind a persistent "not legal advice, not a risk determination" disclaimer.*
+<p align="center">
+  <img src="docs/images/prosecution-pattern.png" alt="relief-probe dashboard — Prosecution pattern tab">
+</p>
+<p align="center"><em>The "Prosecution pattern" tab on <strong>synthetic demo data</strong> — a loan's profile, signal overlap, and percentile against the prosecuted population, behind a persistent "not legal advice, not a risk determination" disclaimer.</em></p>
 
 ## Results in detail (the honest version)
 
