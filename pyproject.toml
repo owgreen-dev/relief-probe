@@ -40,6 +40,9 @@ embeddings-lite = ["model2vec>=0.3"]
 embeddings = ["sentence-transformers>=2.2"]
 # Multi-relational fraud-ring graph layer (Loop 4) — pure-python, no torch.
 graph = ["networkx>=3.0"]
+# Static README/docs figures generated from the warehouse (read-only). Dev/local
+# only — never pulled by the app or demo. See scripts/make_readme_figures.py.
+figures = ["matplotlib>=3.8"]
 
 [project.scripts]
 relief-probe = "relief_probe.cli:app"

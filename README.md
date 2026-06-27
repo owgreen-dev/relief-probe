@@ -33,6 +33,10 @@ The differentiator isn't a single model — it's the **discipline**. Every metho
 
 ## Results at a glance
 
+![Scope and result: 11.4M PPP loans with the prosecuted ones overlaid, and the ranking's lift over base rate by depth](docs/images/scope-and-lift.png)
+
+***Left** — all 11.4M public PPP loans by amount × dollars-per-job; the 325 exact-match prosecuted loans (orange) cluster in the high-$/job tail **above the $150k disclosure line** — but so do plenty of legitimate high-wage firms, which is why a one-line sort already gets you most of the way. **Right** — lift over base rate by ranking depth: the composite barely beats the one-line `$/job` sort, and the 95% bootstrap CI only clears 1× around k≥500 (the @100 spike rests on ~3 loans). Generated read-only from the warehouse by [`scripts/make_readme_figures.py`](scripts/make_readme_figures.py).*
+
 **Does the ranking find prosecuted fraud?** On the labelable 965k-loan **$150k+ slice** (base rate 0.034%), the composite ranking lifts prosecuted loans **23.8× at k=500** — with honest **95% bootstrap CIs** (the eye-catching @100 number rests on *3 loans* and its CI spans zero; the README says so). And it barely beats a one-line `ORDER BY amount/jobs DESC` sort — so the *ratio* is the signal, not the machinery. That self-critique is the point.
 
 **The "add AI" experiment, scored honestly — three retrieval wins, five prediction negatives, and one qualified prediction win:**
