@@ -6,15 +6,22 @@
 ![Warehouse: DuckDB](https://img.shields.io/badge/warehouse-DuckDB-yellow.svg)
 [![Live demo](https://img.shields.io/badge/%E2%96%B6_live_demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://relief-probe-git.streamlit.app/)
 
-**Finding fraud leads in 11.4M public PPP loans — validated against *real, future* DOJ prosecutions, and honest about what works and what doesn't.**
+**A reusable discipline for finding fraud leads in public data — demonstrated on 11.4M public PPP loans, validated against *real, future* DOJ prosecutions, and honest about what works and what doesn't.**
 
 Reproducible by a stranger from public federal files (SBA FOIA loan data + DOJ/SBA-OIG enforcement records), on a laptop, against a local DuckDB warehouse — no cluster.
+
+> **The headline result:** on the 965k labelable loans, the transparent composite ranking concentrates prosecuted fraud **23.8× over the base rate at k=500** — 95% bootstrap CI **5.9–47.5×**, measured **out-of-time** (every DOJ charge post-dates its loan). The full, self-critical breakdown — including where it barely beats a one-line SQL sort — is in [Results at a glance](#results-at-a-glance).
+
+<p align="center">
+  <img src="docs/images/scope-and-lift.png" alt="Scope and result: 11.4M PPP loans with the prosecuted ones overlaid, and the ranking's lift over base rate by depth">
+</p>
+<p align="center"><em><strong>Top</strong> — all 11.4M public PPP loans by amount × dollars-per-job; the 325 exact-match prosecuted loans (orange) cluster in the high-$/job tail <strong>above the $150k disclosure line</strong> — but so do plenty of legitimate high-wage firms, which is why a one-line sort already gets you most of the way. <strong>Bottom</strong> — lift over base rate by ranking depth: the composite barely beats the one-line <code>$/job</code> sort, and the 95% bootstrap CI only clears 1× around k≥500 (the @100 spike rests on ~3 loans). Generated read-only from the warehouse by <a href="scripts/make_readme_figures.py"><code>scripts/make_readme_figures.py</code></a>.</em></p>
 
 <p align="center">
   <a href="https://relief-probe-git.streamlit.app/"><img src="docs/images/similar-cases.png" alt="relief-probe dashboard — Similar cases tab (click to open the live demo)"></a>
 </p>
 <p align="center">
-  <a href="https://relief-probe-git.streamlit.app/"><strong>▶ Try the live demo</strong></a> &nbsp;·&nbsp; interactive, on synthetic data only &nbsp;·&nbsp; or run it <a href="#usage">locally</a>
+  <a href="https://relief-probe-git.streamlit.app/"><strong>▶ Try the live demo</strong></a> &nbsp;·&nbsp; interactive, on synthetic data only &nbsp;·&nbsp; or run it locally in <a href="#usage">2 minutes — no data, no keys</a>
 </p>
 
 <p align="center"><em>The dashboard's "Similar cases" tab — shown on <strong>synthetic demo data</strong> (fictitious sample-company names). Given a loan, find its look-alikes by business-name + dollar + area similarity, surfacing a coordinated ring and flagging which neighbors are already prosecuted. A resemblance is a lead for review, not proof. (On the real warehouse, prosecuted loans' nearest look-alikes are ~3.4× enriched for fraud — see Results.)</em></p>
@@ -33,10 +40,7 @@ The differentiator isn't a single model — it's the **discipline**. Every metho
 
 ## Results at a glance
 
-<p align="center">
-  <img src="docs/images/scope-and-lift.png" alt="Scope and result: 11.4M PPP loans with the prosecuted ones overlaid, and the ranking's lift over base rate by depth">
-</p>
-<p align="center"><em><strong>Top</strong> — all 11.4M public PPP loans by amount × dollars-per-job; the 325 exact-match prosecuted loans (orange) cluster in the high-$/job tail <strong>above the $150k disclosure line</strong> — but so do plenty of legitimate high-wage firms, which is why a one-line sort already gets you most of the way. <strong>Bottom</strong> — lift over base rate by ranking depth: the composite barely beats the one-line <code>$/job</code> sort, and the 95% bootstrap CI only clears 1× around k≥500 (the @100 spike rests on ~3 loans). Generated read-only from the warehouse by <a href="scripts/make_readme_figures.py"><code>scripts/make_readme_figures.py</code></a>.</em></p>
+*(The scope-and-lift chart is up top — the money shot, generated read-only from the warehouse by [`scripts/make_readme_figures.py`](scripts/make_readme_figures.py).)*
 
 **Does the ranking find prosecuted fraud?** On the labelable 965k-loan **$150k+ slice** (base rate 0.034%), the composite ranking lifts prosecuted loans **23.8× at k=500** — with honest **95% bootstrap CIs** (the eye-catching @100 number rests on *3 loans* and its CI spans zero; the README says so). And it barely beats a one-line `ORDER BY amount/jobs DESC` sort — so the *ratio* is the signal, not the machinery. That self-critique is the point.
 
@@ -93,6 +97,16 @@ Optional capabilities are carved into [pyproject](pyproject.toml) extras so the 
 
 Everything runs on a laptop from public data; [`uv`](https://docs.astral.sh/uv/) handles the Python + dependencies.
 
+**Try it in 2 minutes — no data, no keys.** The dashboard builds its own small, fully-synthetic warehouse on first launch (fictitious names; runs the *real* detectors over it), so you get a working demo with zero setup:
+
+```bash
+git clone https://github.com/owgreen-dev/relief-probe && cd relief-probe
+RELIEF_PROBE_DEMO=1 uv run --extra viz --extra vision --extra embeddings-lite \
+  streamlit run app/dashboard.py
+```
+
+It builds instantly and **never** overwrites an existing warehouse (see [docs/DEPLOY.md](docs/DEPLOY.md)). For the full pipeline on real public data:
+
 **1. Get it + confirm the install** (fully offline — no data or keys needed):
 
 ```bash
@@ -118,7 +132,7 @@ uv run relief-probe benchmark                  # measure how well the ranking fi
 <p align="center"><em>Loan-leads tab on <strong>synthetic demo data</strong> (fictitious sample-company names). The "Similar cases" tab (the hero screenshot up top) is the ring-expansion view.</em></p>
 
 ```bash
-uv run --extra viz --extra vision --extra embeddings-lite streamlit run app/dashboard.py
+uv run --extra viz --extra vision --extra embeddings-lite streamlit run app/dashboard.py   # prefix RELIEF_PROBE_DEMO=1 to browse synthetic data with no warehouse
 uv run relief-probe investigate <loan_number>                       # a grounded, evidence-cited report on one loan
 uv run --extra embeddings-lite relief-probe similar <loan_number>   # its look-alikes (rings) by name + $ + area
 ```
@@ -173,6 +187,12 @@ A snapshot you (or a fork) can pick up loop-by-loop. Each is scoped and points a
 | Synthetic spliced documents (built-in) | vision train/eval (offline) | ✅ |
 
 *Known data-quality note: a few DOJ releases carry a mis-parsed `alleged_amount` (e.g. a $14.7M scheme stored as $1.8B) — a noisy **metadata** field on an otherwise-correct label, not a loan-amount error. Loan amounts come straight from the SBA file. See [docs/LABEL_PRECISION.md](docs/LABEL_PRECISION.md).*
+
+## Part of a method family
+
+Same discipline, different domain: **public data → detectors → enforcement-action (PU) labels → honest out-of-time benchmarks → an explorer UI.** relief-probe applies it to PPP relief fraud; its sibling applies it to crypto:
+
+- **[ellip2](https://github.com/owgreen-dev/ellip2)** — money-laundering subgraph detection & discovery on the Elliptic2 Bitcoin dataset.
 
 ## License
 
