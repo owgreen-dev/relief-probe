@@ -28,7 +28,7 @@ Reproducible by a stranger from public federal files (SBA FOIA loan data + DOJ/S
 
 > **Research/educational project — not legal, financial, or investigative advice, and not an accusation of fraud against any person or business.** Every score is a *statistical lead for review of public data*, never a determination of guilt; all examples and screenshots use anonymized or synthetic data. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
-**Start here:** [Results one-pager](RESULTS.md) · [What it is](#what-it-is) · [Responsible use](RESPONSIBLE_USE.md)
+**Start here:** [Results one-pager](RESULTS.md) · [What it is](#what-it-is) · [Design decisions (ADRs)](docs/decisions.md) · [Responsible use](RESPONSIBLE_USE.md)
 
 ## What it is
 
@@ -173,7 +173,7 @@ On the $150k+ slice (965,122 loans; base rate 0.034%), measured against the **32
 
 ## Roadmap & where to take this next
 
-A snapshot you (or a fork) can pick up loop-by-loop. Each is scoped and points at the pattern to reuse — see [CONTRIBUTING.md](CONTRIBUTING.md) for the build → validate → **honest-disposition** discipline. Honest negatives are welcome results.
+A snapshot you (or a fork) can pick up loop-by-loop. Each is scoped and points at the pattern to reuse — see [CONTRIBUTING.md](CONTRIBUTING.md) for the build → validate → **honest-disposition** discipline (and [docs/decisions.md](docs/decisions.md) for *why* each core choice was made). Honest negatives are welcome results.
 
 - **Validate / promote the exploratory layers** *(S)* — `fraud_ring_graph` and `business_recency` are built + have validation harnesses but stay exploratory; re-measure their held-out lift vs the composite and promote only what earns it. *Reuse `scripts/validate_*.py` + `registry.py`.*
 - **A free KYB provider** *(M)* — implement the `EvidenceProvider` protocol against a **free** source (SAM.gov's government API, or a state Secretary-of-State) as a drop-in for OpenCorporates. *Reuse `kyb/provider.py::EvidenceProvider`.*
