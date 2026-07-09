@@ -163,7 +163,13 @@ On the $150k+ slice (965,122 loans; base rate 0.034%), measured against the **32
 - **No leakage.** The production detectors are **unsupervised** (program rules + statistics, not fit to labels); labels are prosecutions dated *years after* the loans. The one *learned* scorer was validated on a **temporal holdout** (train ≤2023, test >2023) — and the holdout caught it overfitting `forgiveness_ratio`, so it stays exploratory.
 - **PU + biased labels** → this is **recall-on-known-fraud, not a fraud rate.** Confirmed fraud is a tiny (<0.1%), prosecution-biased sample. See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md).
 
-Reproduce: `relief-probe ingest && relief-probe fetch-labels && relief-probe resolve-labels && relief-probe benchmark`.
+**No hand-typed numbers.** Every figure, headline, and per-method verdict here is regenerated read-only from the warehouse — nothing in the prose is typed by hand. Build the warehouse once (`make warehouse`, ~430 MB of public SBA/DOJ data), then:
+
+- `make figures` — the hero chart up top **and** this headline lift@k table (the 325 exact-match label set; reproduces the 23.8×@500).
+- `make benchmark` — the live forward-lift + per-detector ablation (`relief-probe benchmark`, over the *current* resolved label set, which the LLM step has grown past 325 — so its point lift differs slightly from the frozen table above, by design).
+- `make validate` — every per-method verdict in [docs/RESULTS.md](docs/RESULTS.md) (`scripts/validate_*.py`).
+
+`make regen` runs all three. See the [`Makefile`](Makefile).
 
 ## Roadmap & where to take this next
 
