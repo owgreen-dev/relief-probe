@@ -79,6 +79,34 @@ graph/       Layer 9 — Fraud rings:   multi-relational loan graph (address+ent
 kyb/         Layer 10 — KYB evidence: external business-verification (OpenCorporates), deterministic-first ⚗️
 ```
 
+## Data model — the ontology
+
+Small enough to draw. **Loan** is the hub; **Borrower**, **Lender**, **Address**, and **Case** hang off it — and the address / entity / similarity links between loans are exactly what the ring graph walks. Full object + link tables: **[docs/ontology.md](docs/ontology.md)**.
+
+```mermaid
+flowchart LR
+    B["Borrower<br/>resolved entity_key()"]
+    LN["Lender<br/>originating / servicing"]
+    L(["Loan<br/>loans · PK loan_number"])
+    A["Address<br/>normalized building key"]
+    C["Case<br/>fraud_cases ← DOJ press_releases"]
+
+    B -- "files (1 → many)" --> L
+    LN -- "originates / services" --> L
+    L -- "located at" --> A
+    L -- "resembles / ring<br/>(name · $-band · area)" --> L
+    C -. "charges — post-dates the loan<br/>(the out-of-time label)" .-> L
+
+    classDef hub fill:#1f4e79,stroke:#12314d,color:#fff;
+    classDef obj fill:#eef3f8,stroke:#7f8c8d,color:#1f2d3d;
+    classDef label fill:#fbe6da,stroke:#e8743b,color:#5a2d12;
+    class L hub;
+    class B,LN,A obj;
+    class C label;
+```
+
+*A shared address or a resemblance is a **lead for review**, never proof — the **Case → Loan** link is a DOJ charge that post-dates the loan (the honest out-of-time label), not a guilt score.*
+
 ## Repo map
 
 ```
