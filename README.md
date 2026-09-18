@@ -228,6 +228,10 @@ Same discipline, different domain: **public data → detectors → enforcement-a
 
 - **[ellip2](https://github.com/owgreen-dev/ellip2)** — money-laundering subgraph detection & discovery on the Elliptic2 Bitcoin dataset.
 
+## My role
+
+**Architect and sole author.** I owned problem framing, public-data ingestion and the ontology, out-of-time enforcement labels, the composite scoring and its baseline comparison, bootstrap evaluation, the responsible-use policy, the Streamlit demo and CI. External contributions, where they exist, are credited in the PR history.
+
 ## License
 
 [Apache-2.0](LICENSE). See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md) — this tool produces leads for review of *public* data, never determinations of fraud.
